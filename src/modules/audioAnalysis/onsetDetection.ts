@@ -1,9 +1,16 @@
 import { stft } from './stft'
 
+export interface BandEnergy {
+  low: number   // 0-250Hz: kick/bass → 强力 Tap
+  mid: number   // 250-2000Hz: melody/vocal → Tap/Drag
+  high: number  // 2000Hz+: hi-hat/cymbal → Flick/Drag
+}
+
 export interface Onset {
   time: number
   end: number
   intensity: number
+  bands: BandEnergy
 }
 
 export interface OnsetDetectionParams {
@@ -45,6 +52,22 @@ function findPeaks(flux: Float32Array, stdScale: number, floor: number): number[
   return peaks
 }
 
+function computeBandEnergies(
+  frame: Float32Array, sampleRate: number, fftSize: number
+): BandEnergy {
+  const lowEnd = Math.floor(250 * fftSize / sampleRate)
+  const midEnd = Math.floor(2000 * fftSize / sampleRate)
+  let low = 0, mid = 0, high = 0
+  for (let i = 1; i < frame.length; i++) {
+    const energy = frame[i] * frame[i]
+    if (i < lowEnd) low += energy
+    else if (i < midEnd) mid += energy
+    else high += energy
+  }
+  const total = low + mid + high || 1
+  return { low: low / total, mid: mid / total, high: high / total }
+}
+
 export function detectOnsets(signal: Float32Array, params: OnsetDetectionParams): Onset[] {
   const {
     sampleRate, fftSize = 2048, hopSize = 512,
@@ -70,6 +93,7 @@ export function detectOnsets(signal: Float32Array, params: OnsetDetectionParams)
     onsets.push({
       time, end: endIdx * hopDur,
       intensity: maxFlux > 0 ? Math.min(1, flux[idx] / maxFlux) : 0,
+      bands: computeBandEnergies(frames[idx], sampleRate, fftSize),
     })
   }
   return onsets

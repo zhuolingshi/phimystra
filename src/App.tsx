@@ -3,9 +3,11 @@ import { AudioImporter } from './components/AudioImporter'
 import { OnsetViewer } from './components/OnsetViewer'
 import { DifficultySelector } from './components/DifficultySelector'
 import { ChartPreview } from './components/ChartPreview'
+import { ChartPlayer } from './components/ChartPlayer'
 import { useProjectStore } from './stores/projectStore'
 import { analyzeAudio } from './modules/audioAnalysis'
 import { generateChart } from './modules/chartEngine'
+import { exportPez, downloadPez, encodeAudioBufferToWav } from './modules/pezExporter'
 
 export default function App() {
   const {
@@ -16,6 +18,7 @@ export default function App() {
 
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   const handleAnalyze = async () => {
     if (!audio) return
@@ -53,6 +56,25 @@ export default function App() {
     }
   }
 
+  const handleExport = () => {
+    if (!chart || !audio) return
+    setExporting(true)
+    try {
+      const wavData = encodeAudioBufferToWav(audio.audioBuffer)
+      const result = exportPez({
+        chart,
+        audioData: wavData,
+        audioFormat: 'wav',
+        filename: `${chart.META.name || 'chart'}.pez`,
+      })
+      downloadPez(result)
+    } catch (err) {
+      console.error('导出失败:', err)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div style={{
       backgroundColor: '#0f0f1e', minHeight: '100vh', color: '#eee',
@@ -73,7 +95,7 @@ export default function App() {
             {isAnalyzing ? '正在分析...' : '🔍 分析节奏'}
           </button>
         )}
-        {isAnalyzing && <p style={{ textAlign: 'center', opacity: 0.7 }}>正在检测节奏点...</p>}
+        {isAnalyzing && <p style={{ textAlign: 'center', opacity: 0.7 }}>正在检测节奏点和频段信息...</p>}
         {analysis && <OnsetViewer />}
 
         {/* Step 3: 选择难度 + 输入曲名 */}
@@ -100,18 +122,25 @@ export default function App() {
 
         {genError && <p style={{ color: '#ff9800' }}>{genError}</p>}
 
-        {/* Step 4: 谱面结果 */}
-        {chart && (
+        {/* Step 4: 预览 + 导出 */}
+        {chart && audio && (
           <>
+            <ChartPlayer />
             <ChartPreview />
-            <button onClick={() => { setChart(null) }}
-              style={buttonStyle(false, '#333', '#ccc', '#555')}>
-              ⚙️ 重新生成（调整难度）
-            </button>
-            <button onClick={reset}
-              style={buttonStyle(false, '#333', '#ccc', '#555')}>
-              🔄 重新开始
-            </button>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={handleExport} disabled={exporting}
+                style={buttonStyle(exporting, '#ff9800')}>
+                {exporting ? '正在导出...' : '📥 导出 .pez 谱面包'}
+              </button>
+              <button onClick={() => setChart(null)}
+                style={buttonStyle(false, '#333', '#ccc', '#555')}>
+                ⚙️ 重新生成
+              </button>
+              <button onClick={reset}
+                style={buttonStyle(false, '#333', '#ccc', '#555')}>
+                🔄 重新开始
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -129,6 +158,6 @@ function buttonStyle(
     padding: '12px 24px', fontSize: '16px', cursor: disabled ? 'wait' : 'pointer',
     backgroundColor: disabled ? '#333' : bg, color: disabled ? '#666' : color,
     border: `1px solid ${border}`, borderRadius: '8px',
-    opacity: disabled ? 0.7 : 1,
+    opacity: disabled ? 0.7 : 1, flex: 1,
   }
 }

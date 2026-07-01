@@ -1,7 +1,8 @@
 // 音符生成引擎：将 onset 转换为 RPE 音符（Tap/Hold/Drag/Flick 决策逻辑）
-// 参考 PhiGen 的 appendPattern 算法
+// 增强版：频段分离决策 + 节拍量化对齐 + 段落感知密度
 
-import type { Onset } from '../audioAnalysis/onsetDetection'
+import type { Onset, BandEnergy } from '../audioAnalysis/onsetDetection'
+import type { MusicSegment } from '../audioAnalysis'
 import type { Note, NoteType, BeatTime } from '../../types/rpe'
 import { createNote, secondsToBeatTime } from '../../types/rpe'
 import type { DifficultyParams } from './difficultyParams'
@@ -31,12 +32,33 @@ export function filterOnsetsByDensity(
   return sorted.slice(0, count).sort((a, b) => a.time - b.time)
 }
 
+// 节拍量化对齐：将秒级时间对齐到最近的 BPM 拍子网格
+export function quantizeToBeat(time: number, bpm: number, subdivision: number = 4): number {
+  const beatDur = 60 / bpm
+  const gridDur = beatDur / subdivision
+  return Math.round(time / gridDur) * gridDur
+}
+
+// 根据频段能量决定音符类型偏好
+function decideNoteTypeByBand(
+  bands: BandEnergy | undefined,
+  rand: () => number,
+  flickProb: number
+): { preferDrag: boolean; preferFlick: boolean; preferTap: boolean } {
+  const b = bands ?? { low: 0.33, mid: 0.34, high: 0.33 }
+  return {
+    preferTap: b.low > 0.4,
+    preferDrag: b.mid > 0.4 || b.high > 0.35,
+    preferFlick: b.high > 0.4 && rand() < flickProb * 1.5,
+  }
+}
+
 interface NoteGenState {
   noteType: NoteType
   endTime: number  // 上一个音符的结束时间(秒)
 }
 
-// 核心：将单个 onset 转换为音符（参考 PhiGen appendPattern）
+// 核心：将单个 onset 转换为音符（频段分离 + 节拍量化增强版）
 function onsetToNotes(
   onset: Onset,
   prev: NoteGenState,
@@ -44,12 +66,17 @@ function onsetToNotes(
   rand: () => number,
   bpm: number
 ): { notes: Note[]; next: NoteGenState } {
-  const { time: startTime, end: endTime } = onset
+  const { time: rawTime, end: rawEnd } = onset
+  // 节拍量化对齐
+  const startTime = quantizeToBeat(rawTime, bpm)
+  const endTime = quantizeToBeat(rawEnd, bpm)
   const duration = endTime - startTime
   const isLong = duration > params.holdThreshold
   const interval = prev.noteType === 1 ? params.clickInterval : params.holdInterval
   const tooClose = startTime - prev.endTime < interval
-  const flickEnd = rand() < params.flickProbability
+  // 频段决策
+  const bandPref = decideNoteTypeByBand(onset.bands, rand, params.flickProbability)
+  const flickEnd = bandPref.preferFlick || rand() < params.flickProbability
   const notes: Note[] = []
 
   const beatStart = secondsToBeatTime(startTime, bpm)
@@ -86,14 +113,23 @@ function onsetToNotes(
   }
 }
 
-// 将 onset 列表转换为音符列表
+// 将 onset 列表转换为音符列表（支持段落感知密度调整）
 export function generateNotes(
   onsets: Onset[],
   params: DifficultyParams,
   bpm: number = 120,
-  seed: number = 42
+  seed: number = 42,
+  segments?: MusicSegment[]
 ): Note[] {
-  const filtered = filterOnsetsByDensity(onsets, params.noteDensity)
+  // 段落感知过滤：根据段落密度倍率调整 onset 选择
+  let filtered: Onset[]
+  if (segments && segments.length > 0) {
+    const segmentFiltered = filterOnsetsBySegmentDensity(onsets, params.noteDensity, segments)
+    filtered = segmentFiltered
+  } else {
+    filtered = filterOnsetsByDensity(onsets, params.noteDensity)
+  }
+
   const rand = seededRandom(seed)
   const allNotes: Note[] = []
   let prev: NoteGenState = { noteType: 1, endTime: 0 }
@@ -105,6 +141,20 @@ export function generateNotes(
   }
 
   return allNotes
+}
+
+// 段落感知 onset 过滤：不同段落使用不同密度倍率
+export function filterOnsetsBySegmentDensity(
+  onsets: Onset[],
+  baseDensity: number,
+  segments: MusicSegment[]
+): Onset[] {
+  const adjusted = onsets.map(onset => {
+    const seg = segments.find(s => onset.time >= s.start && onset.time < s.end) ?? segments[0]
+    const effectiveIntensity = onset.intensity * seg.densityMultiplier
+    return { ...onset, intensity: effectiveIntensity }
+  })
+  return filterOnsetsByDensity(adjusted, baseDensity)
 }
 
 // 统计音符类型分布

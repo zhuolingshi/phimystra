@@ -27,7 +27,7 @@ export function generateChart(params: GenerateChartParams): ChartGenerationResul
   const { analysis, difficultyLevel, songName, composer, charter, seed = 42 } = params
 
   const difficulty = levelToParams(difficultyLevel)
-  const notes = generateNotes(analysis.onsets, difficulty, analysis.bpm, seed)
+  const notes = generateNotes(analysis.onsets, difficulty, analysis.bpm, seed, analysis.segments)
   const chart = buildChart({
     name: songName,
     composer,
