@@ -215,7 +215,8 @@ export function getLineState(line: ProcessedLine, time: number) {
   const x = getEventValue(line.moveXEvents, time, 0)
   const y = getEventValue(line.moveYEvents, time, 0)
   const rotation = getEventValue(line.rotateEvents, time, 0)
-  const alpha = getEventValue(line.alphaEvents, time, 1)
+  const rawAlpha = getEventValue(line.alphaEvents, time, 1)
+  const alpha = rawAlpha > 1 ? rawAlpha / 255 : rawAlpha
   const floorPos = queryFloorPosition(line.floorPosTable, time)
   const speed = queryFloorSpeed(line.floorPosTable, time)
   return { x, y, rotation, alpha, floorPos, speed }

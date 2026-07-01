@@ -55,7 +55,18 @@ function decideNoteTypeByBand(
 
 interface NoteGenState {
   noteType: NoteType
-  endTime: number  // 上一个音符的结束时间(秒)
+  endTime: number
+  lastPos: number
+}
+
+// 生成音符水平位置，避免连续音符过近
+function generatePositionX(rand: () => number, lastPos: number, difficulty: number): number {
+  const spread = Math.min(600, 200 + difficulty * 30)
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const pos = Math.round((rand() - 0.5) * spread)
+    if (Math.abs(pos - lastPos) > 80) return pos
+  }
+  return Math.round((rand() - 0.5) * spread)
 }
 
 // 核心：将单个 onset 转换为音符（频段分离 + 节拍量化增强版）
@@ -78,38 +89,35 @@ function onsetToNotes(
   const bandPref = decideNoteTypeByBand(onset.bands, rand, params.flickProbability)
   const flickEnd = bandPref.preferFlick || rand() < params.flickProbability
   const notes: Note[] = []
+  const posX = generatePositionX(rand, prev.lastPos, params.level)
 
   const beatStart = secondsToBeatTime(startTime, bpm)
   const beatEnd = secondsToBeatTime(endTime, bpm)
 
   if (isLong) {
     if (tooClose) {
-      // Drag 链
       const dragStep = params.dragInterval
       for (let t = startTime; t < endTime; t += dragStep) {
         const bt = secondsToBeatTime(t, bpm)
-        notes.push(createNote({ type: 4, startTime: bt, endTime: bt, speed: params.fallSpeed }))
+        notes.push(createNote({ type: 4, startTime: bt, endTime: bt, speed: params.fallSpeed, positionX: posX }))
       }
       if (flickEnd) {
-        notes.push(createNote({ type: 3, startTime: beatEnd, endTime: beatEnd, speed: params.fallSpeed }))
+        notes.push(createNote({ type: 3, startTime: beatEnd, endTime: beatEnd, speed: params.fallSpeed, positionX: posX }))
       }
-      return { notes, next: { noteType: flickEnd ? 3 : 4, endTime } }
+      return { notes, next: { noteType: flickEnd ? 3 : 4, endTime, lastPos: posX } }
     } else {
-      // Hold 长按
-      notes.push(createNote({ type: 2, startTime: beatStart, endTime: beatEnd, speed: params.fallSpeed }))
+      notes.push(createNote({ type: 2, startTime: beatStart, endTime: beatEnd, speed: params.fallSpeed, positionX: posX }))
       if (flickEnd) {
-        notes.push(createNote({ type: 3, startTime: beatEnd, endTime: beatEnd, speed: params.fallSpeed }))
+        notes.push(createNote({ type: 3, startTime: beatEnd, endTime: beatEnd, speed: params.fallSpeed, positionX: posX }))
       }
-      return { notes, next: { noteType: flickEnd ? 3 : 2, endTime } }
+      return { notes, next: { noteType: flickEnd ? 3 : 2, endTime, lastPos: posX } }
     }
   } else if (tooClose) {
-    // Drag
-    notes.push(createNote({ type: 4, startTime: beatStart, endTime: beatStart, speed: params.fallSpeed }))
-    return { notes, next: { noteType: 4, endTime: startTime } }
+    notes.push(createNote({ type: 4, startTime: beatStart, endTime: beatStart, speed: params.fallSpeed, positionX: posX }))
+    return { notes, next: { noteType: 4, endTime: startTime, lastPos: posX } }
   } else {
-    // Tap
-    notes.push(createNote({ type: 1, startTime: beatStart, endTime: beatStart, speed: params.fallSpeed }))
-    return { notes, next: { noteType: 1, endTime: startTime } }
+    notes.push(createNote({ type: 1, startTime: beatStart, endTime: beatStart, speed: params.fallSpeed, positionX: posX }))
+    return { notes, next: { noteType: 1, endTime: startTime, lastPos: posX } }
   }
 }
 
@@ -132,7 +140,7 @@ export function generateNotes(
 
   const rand = seededRandom(seed)
   const allNotes: Note[] = []
-  let prev: NoteGenState = { noteType: 1, endTime: 0 }
+  let prev: NoteGenState = { noteType: 1, endTime: 0, lastPos: 0 }
 
   for (const onset of filtered) {
     const { notes, next } = onsetToNotes(onset, prev, params, rand, bpm)

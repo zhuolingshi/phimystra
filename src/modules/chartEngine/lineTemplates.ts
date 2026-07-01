@@ -1,6 +1,6 @@
 // 判定线模板系统：预设的判定线布局和动画
 
-import type { JudgeLine, Note, AnimationEvent, BeatTime } from '../../types/rpe'
+import type { JudgeLine, Note, AnimationEvent, SpeedEvent, BeatTime } from '../../types/rpe'
 import { createJudgeLine, secondsToBeatTime } from '../../types/rpe'
 
 export interface LinePreset {
@@ -48,7 +48,15 @@ function makeLine(params: {
   layer.moveXEvents = [staticEvent(preset.x, params.lastTime, params.bpm)]
   layer.moveYEvents = [staticEvent(preset.y, params.lastTime, params.bpm)]
   layer.rotateEvents = [staticEvent(preset.rotation, params.lastTime, params.bpm)]
-  layer.alphaEvents = [staticEvent(params.alpha ?? 255, params.lastTime, params.bpm)]
+  layer.alphaEvents = [staticEvent(params.alpha ?? 1, params.lastTime, params.bpm)]
+
+  // 设置默认速度事件（音符下落速度）
+  layer.speedEvents = [{
+    startTime: secondsToBeatTime(0, params.bpm),
+    endTime: secondsToBeatTime(params.lastTime, params.bpm),
+    value: 0.6,
+    linkgroup: 0,
+  }]
 
   return line
 }
