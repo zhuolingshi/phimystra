@@ -6,10 +6,8 @@ export type IntegralFn = (x: number) => number
 
 const PI = Math.PI
 const c1 = 1.70158
-const c2 = c1 * 1.525
 const c3 = c1 + 1
 const c4 = (2 * PI) / 3
-const c5 = (2 * PI) / 4.5
 
 function bounceOut(x: number): number {
   const n1 = 7.5625, d1 = 2.75

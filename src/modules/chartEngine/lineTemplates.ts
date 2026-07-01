@@ -1,6 +1,6 @@
 // 判定线模板系统：预设的判定线布局和动画
 
-import type { JudgeLine, Note, AnimationEvent, SpeedEvent, BeatTime } from '../../types/rpe'
+import type { JudgeLine, Note, AnimationEvent } from '../../types/rpe'
 import { createJudgeLine, secondsToBeatTime } from '../../types/rpe'
 
 export interface LinePreset {

@@ -1,4 +1,4 @@
-import { detectOnsets, type Onset, type OnsetDetectionParams } from './onsetDetection'
+import { detectOnsets, type Onset, type OnsetDetectionParams, type BandEnergy } from './onsetDetection'
 import { estimateBPM } from './bpmEstimation'
 
 export type SegmentType = 'intro' | 'verse' | 'chorus' | 'bridge' | 'outro'
@@ -61,7 +61,7 @@ function computeEnergyCurve(signal: Float32Array, sampleRate: number): number[] 
 export type { Onset, OnsetDetectionParams, BandEnergy }
 
 function detectSegments(
-  energyCurve: number[], duration: number, onsets: Onset[]
+  energyCurve: number[], duration: number, _onsets: Onset[]
 ): MusicSegment[] {
   if (energyCurve.length === 0) {
     return [{ start: 0, end: duration, type: 'verse', energy: 0.5, densityMultiplier: 1.0 }]

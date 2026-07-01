@@ -1,9 +1,8 @@
 // RPE 事件解析器：借鉴 phi-chart-render 预处理策略 + PhiZone 实时缓动计算
 // 负责：beat→sec 转换、事件值插值、floorPosition 预积分
 
-import type { RPEChart, JudgeLine, Note, BeatTime, BPMEntry } from '../../types/rpe'
-import { PIXELS_PER_SECOND } from '../../types/rpe'
-import { getEasingFn, type EasingFn } from './easings'
+import type { RPEChart, Note, BeatTime, BPMEntry } from '../../types/rpe'
+import { getEasingFn } from './easings'
 
 export interface ProcessedBPM {
   bpm: number
@@ -202,7 +201,6 @@ export function parseChart(chart: RPEChart): ProcessedChart {
       bpmfactor: line.bpmfactor ?? 1,
     }
   })
-  const lastBpm = bpmList[bpmList.length - 1]
   const maxNoteTime = Math.max(...lines.flatMap(l => l.notes.map(n => n.endTime)), 0)
   return {
     lines, bpmList,

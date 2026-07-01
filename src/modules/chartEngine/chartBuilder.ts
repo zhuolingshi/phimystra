@@ -1,6 +1,6 @@
 // RPE Chart 构建器：将音符和判定线组装为完整的 RPE 谱面对象
 
-import type { RPEChart, Note, JudgeLine } from '../../types/rpe'
+import type { RPEChart, Note } from '../../types/rpe'
 import { createEmptyChart } from '../../types/rpe'
 import { buildJudgeLinesForTemplate } from './lineTemplates'
 import type { DifficultyParams } from './difficultyParams'

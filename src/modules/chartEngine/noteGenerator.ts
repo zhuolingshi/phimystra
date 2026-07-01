@@ -3,7 +3,7 @@
 
 import type { Onset, BandEnergy } from '../audioAnalysis/onsetDetection'
 import type { MusicSegment } from '../audioAnalysis'
-import type { Note, NoteType, BeatTime } from '../../types/rpe'
+import type { Note, NoteType } from '../../types/rpe'
 import { createNote, secondsToBeatTime } from '../../types/rpe'
 import type { DifficultyParams } from './difficultyParams'
 

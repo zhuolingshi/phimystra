@@ -2,7 +2,7 @@
 // 渲染判定线（位置/旋转/透明度）和音符（Tap/Hold/Flick/Drag）
 
 import { PIXELS_PER_SECOND } from '../../types/rpe'
-import type { ProcessedChart, ProcessedLine, ProcessedNote } from './eventParser'
+import type { ProcessedChart, ProcessedNote } from './eventParser'
 import { getLineState } from './eventParser'
 
 const PHIGROS_W = 1350
@@ -93,7 +93,7 @@ export function render(
       const noteAlpha = (note.alpha / 255) * alpha
       if (noteAlpha < 0.01) continue
 
-      renderNote(ctx, note, sx, sy, rotation, scale, noteAlpha, cos, sin)
+      renderNote(ctx, note, sx, sy, rotation, scale, noteAlpha)
 
       if (note.type === 2 && note.endTime > note.startTime + 0.05) {
         renderHoldTail(ctx, note, state, worldX, worldY, cos, sin, scale, speedMul, alpha)
@@ -130,8 +130,7 @@ function renderNote(
   ctx: CanvasRenderingContext2D,
   note: ProcessedNote,
   x: number, y: number, rotation: number,
-  scale: number, alpha: number,
-  cos: number, sin: number
+  scale: number, alpha: number
 ): void {
   ctx.save()
   ctx.translate(x, y)
