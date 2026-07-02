@@ -36,6 +36,7 @@ export function buildChart(params: ChartBuildParams): RPEChart {
     lastTime: duration,
     bpm,
     judgeLineCount: difficulty.judgeLineCount,
+    fallSpeed: difficulty.fallSpeed,
   })
 
   chart.judgeLineList = judgeLines

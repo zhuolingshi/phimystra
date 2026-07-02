@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "ai-chart-maker",
-  "version": "0.1.0",
-  "identifier": "com.aichartmaker.app",
+  "productName": "PhiMystra",
+  "version": "0.1.2",
+  "identifier": "com.phimystra.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "AI 音游制谱器",
+        "title": "PhiMystra",
         "width": 1024,
         "height": 768,
         "minWidth": 800,

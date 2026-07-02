@@ -31,6 +31,7 @@ export interface ProcessedNote {
   positionX: number
   speed: number
   floorPosition: number
+  endFloorPosition: number
   above: boolean
   yOffset: number
   alpha: number
@@ -59,7 +60,7 @@ export interface ProcessedChart {
 }
 
 function beatTimeToBeats(bt: BeatTime): number {
-  return bt[2] + (bt[1] !== 0 ? bt[0] / bt[1] : 0)
+  return bt[0] + (bt[2] !== 0 ? bt[1] / bt[2] : 0)
 }
 
 export function beatsToSeconds(beats: number, bpmList: ProcessedBPM[]): number {
@@ -89,21 +90,21 @@ function processBPMList(bpmEntries: BPMEntry[]): ProcessedBPM[] {
 }
 
 function convertEvents(
-  events: { startTime: BeatTime; endTime: BeatTime; startValue: number; endValue: number; easing: number }[],
+  events: { startTime: BeatTime; endTime: BeatTime; start: number; end: number; easingType?: number; easing?: number }[],
   bpmList: ProcessedBPM[]
 ): TimedEvent[] {
   return events.map(e => ({
     startTime: beatTimeToSeconds(e.startTime, bpmList),
     endTime: beatTimeToSeconds(e.endTime, bpmList),
-    start: e.startValue,
-    end: e.endValue,
-    easing: e.easing,
+    start: e.start,
+    end: e.end,
+    easing: e.easingType ?? e.easing ?? 1,
   })).sort((a, b) => a.startTime - b.startTime)
 }
 
 function computeFloorPosTable(speedEvents: TimedEvent[]): FloorPosEntry[] {
   if (speedEvents.length === 0) {
-    return [{ time: -999999, floorPos: 0, speed: 0.6 }]
+    return [{ time: -999999, floorPos: 0, speed: 6.0 }]
   }
   const table: FloorPosEntry[] = []
   let floorPos = 0
@@ -128,12 +129,14 @@ function processNotes(
     const startTime = beatTimeToSeconds(note.startTime, bpmList)
     const endTime = beatTimeToSeconds(note.endTime, bpmList)
     const floorPos = queryFloorPosition(floorTable, startTime)
+    const endFloorPos = queryFloorPosition(floorTable, endTime)
     return {
       type: note.type,
       startTime, endTime,
       positionX: note.positionX,
       speed: note.speed,
       floorPosition: floorPos,
+      endFloorPosition: endFloorPos,
       above: note.above === 1,
       yOffset: note.yOffset ?? 0,
       alpha: note.alpha ?? 255,
@@ -153,7 +156,7 @@ export function queryFloorPosition(table: FloorPosEntry[], time: number): number
 }
 
 export function queryFloorSpeed(table: FloorPosEntry[], time: number): number {
-  if (table.length === 0) return 0.6
+  if (table.length === 0) return 6.0
   for (let i = 0; i < table.length - 1; i++) {
     if (time >= table[i].time && time < table[i + 1].time) return table[i].speed
   }
@@ -185,7 +188,7 @@ export function parseChart(chart: RPEChart): ProcessedChart {
     const speedEventsRaw = layer ? convertEvents(
       layer.speedEvents.map(s => ({
         startTime: s.startTime, endTime: s.endTime,
-        startValue: s.value, endValue: s.value, easing: 1,
+        start: s.start, end: s.end, easingType: 1,
       })), bpmList
     ) : []
     const floorPosTable = computeFloorPosTable(speedEventsRaw)

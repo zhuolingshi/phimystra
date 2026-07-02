@@ -28,7 +28,8 @@ describe('RPE 类型', () => {
   })
 
   it('secondsToBeatTime 正确转换', () => {
-    expect(secondsToBeatTime(1, 120)[2]).toBe(2)
-    expect(secondsToBeatTime(0, 120)).toEqual([0, 1000, 0])
+    // 新格式: [wholeBeat, numerator, denominator]
+    expect(secondsToBeatTime(1, 120)[0]).toBe(2) // 1秒@120BPM = 2拍
+    expect(secondsToBeatTime(0, 120)).toEqual([0, 0, 1000])
   })
 })

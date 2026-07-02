@@ -5,7 +5,7 @@ import type { Onset } from '../audioAnalysis/onsetDetection'
 import type { RPEChart } from '../../types/rpe'
 import { generateNotes, countNoteTypes } from './noteGenerator'
 import { buildChart, validateChart } from './chartBuilder'
-import { levelToParams, type DifficultyParams } from './difficultyParams'
+import { levelToParams, applyPlaystyle, type DifficultyParams, type Playstyle } from './difficultyParams'
 
 export interface ChartGenerationResult {
   chart: RPEChart
@@ -17,6 +17,7 @@ export interface ChartGenerationResult {
 export interface GenerateChartParams {
   analysis: AudioAnalysis
   difficultyLevel: number  // 1-16
+  playstyle?: Playstyle    // 'two-finger' | 'multi-finger'
   songName: string
   composer: string
   charter: string
@@ -24,9 +25,12 @@ export interface GenerateChartParams {
 }
 
 export function generateChart(params: GenerateChartParams): ChartGenerationResult {
-  const { analysis, difficultyLevel, songName, composer, charter, seed = 42 } = params
+  const { analysis, difficultyLevel, songName, composer, charter, seed = Date.now() % 2147483647 } = params
 
-  const difficulty = levelToParams(difficultyLevel)
+  let difficulty = levelToParams(difficultyLevel)
+  if (params.playstyle) {
+    difficulty = applyPlaystyle(difficulty, params.playstyle)
+  }
   const notes = generateNotes(analysis.onsets, difficulty, analysis.bpm, seed, analysis.segments)
   const chart = buildChart({
     name: songName,

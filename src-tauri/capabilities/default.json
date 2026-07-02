@@ -6,6 +6,18 @@
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "dialog:default",
+    "fs:default",
+    "fs:allow-write-file",
+    "fs:allow-read-file",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://cdn.jsdelivr.net/*" },
+        { "url": "https://gh-proxy.com/*" }
+      ]
+    },
+    "opener:default"
   ]
 }

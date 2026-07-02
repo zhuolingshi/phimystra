@@ -3,6 +3,9 @@
 
 // 音符类型: 1=Tap, 2=Hold, 3=Flick, 4=Drag
 export type NoteType = 1 | 2 | 3 | 4
+// RPE BeatTime 格式: [wholeBeat, numerator, denominator]
+// 实际节拍 = wholeBeat + numerator / denominator
+// 例如 [16, 7, 8] = 16 + 7/8 = 16.875 拍
 export type BeatTime = [number, number, number]
 
 export interface Note {
@@ -22,16 +25,25 @@ export interface Note {
 export interface AnimationEvent {
   startTime: BeatTime
   endTime: BeatTime
-  startValue: number
-  endValue: number
-  easing: number
+  start: number
+  end: number
+  easingType: number
+  bezier?: number
+  bezierPoints?: number[]
+  easingLeft?: number
+  easingRight?: number
+  linkgroup?: number
 }
 
 export interface SpeedEvent {
   startTime: BeatTime
   endTime: BeatTime
-  value: number
+  start: number
+  end: number
   linkgroup: number
+  easingType?: number
+  easingLeft?: number
+  easingRight?: number
 }
 
 export interface EventLayer {
@@ -46,8 +58,10 @@ export interface JudgeLine {
   Group: number
   Name: string
   Texture: string
+  alphaControl: unknown[]
   bpmfactor: number
   eventLayers: EventLayer[]
+  extended: { colorEvents: AnimationEvent[]; inclineEvents: AnimationEvent[] }
   father: number
   isCover: 0 | 1
   notes: Note[]
@@ -57,7 +71,6 @@ export interface JudgeLine {
   skewControl: unknown[]
   yControl: unknown[]
   zOrder: number
-  extended?: { inclineEvents: AnimationEvent[] }
 }
 
 export interface BPMEntry { bpm: number; startTime: BeatTime }
@@ -81,7 +94,11 @@ export interface RPEChart {
   judgeLineList: JudgeLine[]
 }
 
-export const PIXELS_PER_SECOND = 512
+// Phigros 原生坐标系中的音符基础高度（像素）
+// 音符视觉距离 = floorPosition差 × NOTE_HEIGHT × note.speed × scale
+export const NOTE_HEIGHT = 90
+// 保留旧常量名供向后兼容，实际渲染请使用 NOTE_HEIGHT
+export const PIXELS_PER_SECOND = NOTE_HEIGHT
 
 export function secondsToBeatTime(seconds: number, bpm = 120): BeatTime {
   const totalBeats = (seconds * bpm) / 60
@@ -89,7 +106,8 @@ export function secondsToBeatTime(seconds: number, bpm = 120): BeatTime {
   const fractionalPart = totalBeats - integerPart
   const denominator = 1000
   const numerator = Math.round(fractionalPart * denominator)
-  return [numerator, denominator, integerPart]
+  // RPE BeatTime 格式: [wholeBeat, numerator, denominator]，即 wholeBeat + numerator/denominator
+  return [integerPart, numerator, denominator]
 }
 
 export function createNote(params: {
@@ -99,7 +117,7 @@ export function createNote(params: {
   return {
     above: params.above ?? 1, alpha: 255, endTime: params.endTime,
     isFake: 0, positionX: params.positionX ?? 0, size: 1,
-    speed: params.speed ?? 0.25, startTime: params.startTime,
+    speed: params.speed ?? 1, startTime: params.startTime,
     type: params.type, visibleTime: 999999, yOffset: 0,
   }
 }
@@ -107,15 +125,20 @@ export function createNote(params: {
 export function createJudgeLine(params: { name: string; group?: number }): JudgeLine {
   return {
     Group: params.group ?? 0, Name: params.name, Texture: 'line.png',
+    alphaControl: [{ alpha: 1, easing: 1, x: 0 }, { alpha: 1, easing: 1, x: 9999999 }],
     bpmfactor: 1,
     eventLayers: [{
       alphaEvents: [], moveXEvents: [], moveYEvents: [],
       rotateEvents: [], speedEvents: [],
     }],
+    extended: {
+      colorEvents: [],
+      inclineEvents: [],
+    },
     father: -1, isCover: 1, notes: [], numOfNotes: 0,
-    posControl: [{ easing: 1, x: 0, y: 0 }, { easing: 1, x: 9999999, y: 0 }],
-    sizeControl: [{ easing: 1, x: 0, y: 1 }, { easing: 1, x: 9999999, y: 1 }],
-    skewControl: [{ easing: 1, x: 0, y: 0 }, { easing: 1, x: 9999999, y: 0 }],
+    posControl: [{ easing: 1, pos: 1, x: 0 }, { easing: 1, pos: 1, x: 9999999 }],
+    sizeControl: [{ easing: 1, size: 1, x: 0 }, { easing: 1, size: 1, x: 9999999 }],
+    skewControl: [{ easing: 1, skew: 0, x: 0 }, { easing: 1, skew: 0, x: 9999999 }],
     yControl: [{ easing: 1, x: 0, y: 1 }, { easing: 1, x: 9999999, y: 1 }],
     zOrder: 0,
   }

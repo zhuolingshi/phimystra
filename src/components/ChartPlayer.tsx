@@ -9,19 +9,23 @@ export function ChartPlayer() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!chart || !audio || !canvasRef.current) return
 
     const engine = createPreviewEngine()
     engine.setCanvas(canvasRef.current)
+    engine.setRenderOptions({ debug: true })
     engine.loadChart(chart, audio.audioBuffer)
     engine.setCallbacks({
       onTimeUpdate: (t, d) => { setCurrentTime(t); setDuration(d) },
       onEnd: () => setIsPlaying(false),
+      onError: (err) => setError(err.message),
     })
     engineRef.current = engine
     setDuration(engine.getDuration())
+    engine.renderOnce()
 
     return () => {
       engine.destroy()
@@ -58,6 +62,12 @@ export function ChartPlayer() {
       padding: '16px', backgroundColor: '#1a1a2e', borderRadius: '12px',
     }}>
       <h3 style={{ marginBottom: '12px', color: '#eee' }}>▶️ 谱面预览</h3>
+
+      {error && (
+        <div style={{ padding: '8px 12px', backgroundColor: '#500', color: '#f88', borderRadius: '6px', marginBottom: '8px', fontSize: '14px' }}>
+          ⚠️ {error}
+        </div>
+      )}
 
       <div style={{
         position: 'relative', borderRadius: '8px', overflow: 'hidden',

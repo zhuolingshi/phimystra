@@ -24,7 +24,7 @@ describe('exportPez', () => {
     })
     expect(result.data).toBeInstanceOf(Uint8Array)
     expect(result.size).toBeGreaterThan(0)
-    expect(result.filename).toBe('Test.pez')
+    expect(result.filename).toBe('Test.zip')
   })
 
   it('ZIP 以 PK 签名开头', () => {
@@ -40,9 +40,9 @@ describe('exportPez', () => {
     const result = exportPez({
       chart: makeTestChart(),
       audioData: new Uint8Array([0]),
-      filename: 'my-chart.pez',
+      filename: 'my-chart.zip',
     })
-    expect(result.filename).toBe('my-chart.pez')
+    expect(result.filename).toBe('my-chart.zip')
   })
 
   it('包含 info.txt 元信息', () => {

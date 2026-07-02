@@ -1,28 +1,78 @@
-// Canvas 渲染器：借鉴 phi-chart-render 的渲染流程
-// 渲染判定线（位置/旋转/透明度）和音符（Tap/Hold/Flick/Drag）
+// Canvas 渲染器 v3：直接使用 phi-chart-render 贴图
+//
+// 贴图来源：https://github.com/MisaLiu/phi-chart-render
+// 渲染参数参照 phi-chart-render 的 calcResizer
 
-import { PIXELS_PER_SECOND } from '../../types/rpe'
+import { NOTE_HEIGHT } from '../../types/rpe'
 import type { ProcessedChart, ProcessedNote } from './eventParser'
 import { getLineState } from './eventParser'
 
 const PHIGROS_W = 1350
 const PHIGROS_H = 900
 
-const NOTE_COLORS: Record<number, string> = {
-  1: '#64c8ff',  // Tap - 蓝
-  2: '#a864ff',  // Hold - 紫
-  3: '#ff6464',  // Flick - 红
-  4: '#64ff96',  // Drag - 绿
+// 贴图缓存
+let textures: Record<string, HTMLImageElement> = {}
+let texturesLoaded = false
+let texturesLoading = false
+
+const TEXTURE_FILES: Record<string, string> = {
+  tap: 'Tap.png',
+  tapHL: 'TapHL.png',
+  drag: 'Drag.png',
+  dragHL: 'DragHL.png',
+  flick: 'Flick.png',
+  flickHL: 'FlickHL.png',
+  holdBody: 'Hold.png',
+  holdBodyHL: 'HoldHL.png',
+  holdHead: 'HoldHead.png',
+  holdHeadHL: 'HoldHeadHL.png',
+  holdEnd: 'HoldEnd.png',
+  judgeLine: 'JudgeLine.png',
 }
 
-const LINE_COLOR = '#e0e0e0'
-const NOTE_W = 120
-const NOTE_H = 30
-const LINE_H = 8
+export function loadTextures(): Promise<void> {
+  if (texturesLoaded) return Promise.resolve()
+  if (texturesLoading) return new Promise(resolve => {
+    const check = () => texturesLoaded ? resolve() : setTimeout(check, 100)
+    check()
+  })
+  texturesLoading = true
+
+  return new Promise(resolve => {
+    let loaded = 0
+    const total = Object.keys(TEXTURE_FILES).length
+    for (const [key, file] of Object.entries(TEXTURE_FILES)) {
+      const img = new Image()
+      img.onload = () => {
+        loaded++
+        if (loaded === total) {
+          texturesLoaded = true
+          texturesLoading = false
+          resolve()
+        }
+      }
+      img.onerror = () => {
+        loaded++
+        if (loaded === total) {
+          texturesLoaded = true
+          texturesLoading = false
+          resolve()
+        }
+      }
+      img.src = file
+      textures[key] = img
+    }
+  })
+}
+
+export function areTexturesLoaded(): boolean {
+  return texturesLoaded
+}
 
 export interface RenderOptions {
   showGuide?: boolean
   speedMultiplier?: number
+  debug?: boolean
 }
 
 export function render(
@@ -39,6 +89,14 @@ export function render(
   const cx = width / 2
   const cy = height / 2
   const speedMul = options.speedMultiplier ?? 1
+
+  // 深色背景
+  ctx.fillStyle = '#0a0a18'
+  ctx.fillRect(0, 0, width, height)
+
+  // phi-chart-render 尺寸计算
+  const noteWidth = width * 0.117775 * (scale / (width / PHIGROS_W))
+  const noteHeight = noteWidth * 0.3
 
   const lineStates = chart.lines.map(line => getLineState(line, currentTime))
 
@@ -57,34 +115,50 @@ export function render(
       const pRot = parent.rotation * Math.PI / 180
       const dx = state.x * scale
       const dy = -state.y * scale
-      const cos = Math.cos(pRot)
-      const sin = Math.sin(pRot)
-      worldX = pX + dx * cos - dy * sin
-      worldY = pY + dy * cos + dx * sin
+      const cosP = Math.cos(pRot)
+      const sinP = Math.sin(pRot)
+      worldX = pX + dx * cosP - dy * sinP
+      worldY = pY + dy * cosP + dx * sinP
       rotation += pRot
     }
 
     const alpha = Math.max(0, Math.min(1, state.alpha))
+    if (alpha < 0.01) continue
 
     const cos = Math.cos(rotation)
     const sin = Math.sin(rotation)
 
+    // 渲染判定线（用贴图）
     renderJudgeLine(ctx, worldX, worldY, rotation, alpha, width, scale)
 
+    // 音符渲染
+    const maxVisibleDist = height / scale
     const visibleNotes = line.notes.filter(n => {
       const offset = n.floorPosition - state.floorPos
-      const screenDist = offset * PIXELS_PER_SECOND * n.speed * speedMul
-      return Math.abs(screenDist) < height
+      const screenDist = Math.abs(offset * NOTE_HEIGHT * n.speed * speedMul)
+      return screenDist < maxVisibleDist
     })
 
     const sortedNotes = line.isCover
       ? visibleNotes.sort((a, b) => a.floorPosition - b.floorPosition)
       : visibleNotes.sort((a, b) => b.floorPosition - a.floorPosition)
 
-    for (const note of sortedNotes) {
+    // 检测同时音符（用于 HL 贴图）
+    const simultaneousKeys = new Set<string>()
+    for (let ni = 0; ni < line.notes.length; ni++) {
+      for (let nj = ni + 1; nj < line.notes.length; nj++) {
+        if (Math.abs(line.notes[ni].startTime - line.notes[nj].startTime) < 0.05) {
+          simultaneousKeys.add(`${ni}`)
+          simultaneousKeys.add(`${nj}`)
+        }
+      }
+    }
+
+    for (let ni = 0; ni < sortedNotes.length; ni++) {
+      const note = sortedNotes[ni]
       const noteOffset = note.floorPosition - state.floorPos
-      const screenDist = noteOffset * PIXELS_PER_SECOND * note.speed * speedMul
-      const localY = screenDist * (note.above ? -1 : 1) * 0.5
+      const screenDistPx = noteOffset * NOTE_HEIGHT * note.speed * speedMul
+      const localY = screenDistPx * (note.above ? -1 : 1) * scale
       const localX = note.positionX * scale
 
       const sx = worldX + localX * cos - localY * sin
@@ -93,12 +167,29 @@ export function render(
       const noteAlpha = (note.alpha / 255) * alpha
       if (noteAlpha < 0.01) continue
 
-      renderNote(ctx, note, sx, sy, rotation, scale, noteAlpha)
+      const origIdx = line.notes.indexOf(note)
+      const isSimul = simultaneousKeys.has(`${origIdx}`)
 
+      // Hold 尾巴先画
       if (note.type === 2 && note.endTime > note.startTime + 0.05) {
-        renderHoldTail(ctx, note, state, worldX, worldY, cos, sin, scale, speedMul, alpha)
+        renderHoldBody(ctx, note, state, worldX, worldY, cos, sin, scale, speedMul, alpha, noteWidth, isSimul)
       }
+
+      renderNote(ctx, note, sx, sy, rotation, scale, noteAlpha, noteWidth, noteHeight, isSimul)
     }
+  }
+
+  // 调试
+  if (options.debug) {
+    const totalNotes = chart.lines.reduce((s, l) => s + l.notes.length, 0)
+    ctx.save()
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'
+    ctx.fillRect(0, 0, width, 60)
+    ctx.fillStyle = '#0f0'
+    ctx.font = '12px monospace'
+    ctx.textBaseline = 'top'
+    ctx.fillText(`time=${currentTime.toFixed(2)}s  notes=${totalNotes}  tex=${texturesLoaded ? 'OK' : 'loading'}`, 8, 4)
+    ctx.restore()
   }
 }
 
@@ -112,16 +203,26 @@ function renderJudgeLine(
   ctx.rotate(rotation)
   ctx.globalAlpha = alpha
 
-  const lineWidth = canvasWidth * 0.7
-  const lineHeight = LINE_H * scale
-
-  const grad = ctx.createLinearGradient(-lineWidth / 2, 0, lineWidth / 2, 0)
-  grad.addColorStop(0, 'rgba(255,255,255,0)')
-  grad.addColorStop(0.2, LINE_COLOR)
-  grad.addColorStop(0.8, LINE_COLOR)
-  grad.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.fillStyle = grad
-  ctx.fillRect(-lineWidth / 2, -lineHeight / 2, lineWidth, lineHeight)
+  if (textures.judgeLine && textures.judgeLine.complete && textures.judgeLine.naturalWidth > 0) {
+    // JudgeLine.png 是一个很小的白色贴图，拉伸到屏幕宽度
+    const lineWidth = canvasWidth * 0.72
+    const tex = textures.judgeLine
+    // phi-chart-render: baseScaleX=3, 但我们直接拉伸
+    const lineHeight = 6 * scale
+    ctx.drawImage(tex, -lineWidth / 2, -lineHeight / 2, lineWidth, lineHeight)
+  } else {
+    // 后备：渐变白线
+    const lineWidth = canvasWidth * 0.72
+    const lineHeight = 6 * scale
+    const grad = ctx.createLinearGradient(-lineWidth / 2, 0, lineWidth / 2, 0)
+    grad.addColorStop(0, 'rgba(255,255,255,0)')
+    grad.addColorStop(0.15, 'rgba(255,255,255,0.9)')
+    grad.addColorStop(0.5, 'rgba(255,255,255,1)')
+    grad.addColorStop(0.85, 'rgba(255,255,255,0.9)')
+    grad.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = grad
+    ctx.fillRect(-lineWidth / 2, -lineHeight / 2, lineWidth, lineHeight)
+  }
 
   ctx.restore()
 }
@@ -130,93 +231,90 @@ function renderNote(
   ctx: CanvasRenderingContext2D,
   note: ProcessedNote,
   x: number, y: number, rotation: number,
-  scale: number, alpha: number
+  _scale: number, alpha: number,
+  noteWidth: number, noteHeight: number, isSimul: boolean
 ): void {
   ctx.save()
   ctx.translate(x, y)
   ctx.rotate(rotation)
   ctx.globalAlpha = alpha
 
-  const w = NOTE_W * scale * note.size
-  const h = NOTE_H * scale
-  const color = NOTE_COLORS[note.type] ?? '#888'
+  let tex: HTMLImageElement | undefined
+  let drawW = noteWidth * note.size
+  let drawH = noteHeight
 
-  ctx.fillStyle = color
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)'
-  ctx.lineWidth = 2 * scale
+  switch (note.type) {
+    case 1: // Tap
+      tex = isSimul ? textures.tapHL : textures.tap
+      break
+    case 2: // Hold - 画头部
+      tex = isSimul ? textures.holdHeadHL : textures.holdHead
+      drawH = noteHeight * 1.0
+      break
+    case 3: // Flick
+      tex = isSimul ? textures.flickHL : textures.flick
+      break
+    case 4: // Drag
+      tex = isSimul ? textures.dragHL : textures.drag
+      break
+  }
 
-  if (note.type === 3) {
-    ctx.beginPath()
-    ctx.moveTo(0, -h / 2)
-    ctx.lineTo(w / 2, 0)
-    ctx.lineTo(0, h / 2)
-    ctx.lineTo(-w / 2, 0)
-    ctx.closePath()
-    ctx.fill()
-    ctx.stroke()
+  if (tex && tex.complete && tex.naturalWidth > 0) {
+    // 按贴图比例绘制
+    const aspect = tex.naturalWidth / tex.naturalHeight
+    drawH = drawW / aspect
+    ctx.drawImage(tex, -drawW / 2, -drawH / 2, drawW, drawH)
   } else {
-    const r = h * 0.3
-    roundRect(ctx, -w / 2, -h / 2, w, h, r)
-    ctx.fill()
-    ctx.stroke()
-
-    if (note.type === 1) {
-      ctx.fillStyle = 'rgba(255,255,255,0.25)'
-      roundRect(ctx, -w / 2 + 3 * scale, -h / 2 + 3 * scale, w * 0.4, h - 6 * scale, r * 0.5)
-      ctx.fill()
-    }
+    // 后备：色块
+    const colors: Record<number, string> = { 1: '#3a9fff', 2: '#b34fff', 3: '#ff4f6f', 4: '#4fff8f' }
+    ctx.fillStyle = colors[note.type] ?? '#888'
+    ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH)
   }
 
   ctx.restore()
 }
 
-function renderHoldTail(
+function renderHoldBody(
   ctx: CanvasRenderingContext2D,
   note: ProcessedNote,
   state: { floorPos: number; speed: number },
   worldX: number, worldY: number,
   cos: number, sin: number,
-  scale: number, speedMul: number, alpha: number
+  scale: number, speedMul: number, alpha: number,
+  noteWidth: number, isSimul: boolean
 ): void {
-  const tailOffset = note.floorPosition - state.floorPos
-  const tailLen = Math.max(0, tailOffset) * PIXELS_PER_SECOND * note.speed * speedMul * 0.5
+  // body 长度 = hold 持续时间对应的 floor 距离
+  const bodyFloorLen = note.endFloorPosition - note.floorPosition
+  const bodyLenPx = bodyFloorLen * NOTE_HEIGHT * note.speed * speedMul
 
-  if (tailLen < 5) return
+  if (bodyLenPx < 5) return
 
+  const tex = isSimul ? textures.holdBodyHL : textures.holdBody
+  if (!tex || !tex.complete || tex.naturalWidth === 0) return
+
+  const bodyW = noteWidth * note.size * 0.9
   const localX = note.positionX * scale
-  const localY1 = 0
-  const localY2 = tailLen * (note.above ? -1 : 1)
 
-  const sx = worldX + localX * cos - localY1 * sin
-  const sy = worldY + localY1 * cos + localX * sin
-  const ex = worldX + localX * cos - localY2 * sin
-  const ey = worldY + localY2 * cos + localX * sin
+  // Hold body 从 note 头部位置开始，向远处（远离判定线方向）延伸
+  const noteOffset = note.floorPosition - state.floorPos
+  const headScreenPx = noteOffset * NOTE_HEIGHT * note.speed * speedMul
+  const headLocalY = headScreenPx * (note.above ? -1 : 1) * scale
+  const tailLocalY = (headScreenPx + bodyLenPx) * (note.above ? -1 : 1) * scale
 
   ctx.save()
-  ctx.globalAlpha = alpha * 0.4
-  ctx.strokeStyle = NOTE_COLORS[2]
-  ctx.lineWidth = NOTE_W * scale * 0.6
-  ctx.lineCap = 'round'
-  ctx.beginPath()
-  ctx.moveTo(sx, sy)
-  ctx.lineTo(ex, ey)
-  ctx.stroke()
-  ctx.restore()
-}
+  ctx.globalAlpha = alpha * 0.85
+  ctx.translate(worldX, worldY)
 
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number, r: number
-): void {
-  ctx.beginPath()
-  ctx.moveTo(x + r, y)
-  ctx.lineTo(x + w - r, y)
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
-  ctx.lineTo(x + w, y + h - r)
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
-  ctx.lineTo(x + r, y + h)
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
-  ctx.lineTo(x, y + r)
-  ctx.quadraticCurveTo(x, y, x + r, y)
-  ctx.closePath()
+  const sx = localX * cos - headLocalY * sin
+  const sy = headLocalY * cos + localX * sin
+  const ex = localX * cos - tailLocalY * sin
+  const ey = tailLocalY * cos + localX * sin
+
+  const bodyAngle = Math.atan2(ey - sy, ex - sx) - Math.PI / 2
+  const bodyH = Math.hypot(ex - sx, ey - sy)
+
+  ctx.translate(sx, sy)
+  ctx.rotate(bodyAngle)
+  ctx.drawImage(tex, -bodyW / 2, 0, bodyW, bodyH)
+  ctx.restore()
 }

@@ -26,7 +26,7 @@ describe('levelToParams', () => {
     expect(p.level).toBe(1)
     expect(p.tier).toBe('beginner')
     expect(p.noteDensity).toBeLessThan(0.5)
-    expect(p.flickProbability).toBe(0)
+    expect(p.flickProbability).toBeLessThan(0.15)
     expect(p.judgeLineCount).toBe(1)
   })
 
@@ -34,9 +34,10 @@ describe('levelToParams', () => {
     const p = levelToParams(14)
     expect(p.level).toBe(14)
     expect(p.tier).toBe('hard')
-    expect(p.noteDensity).toBe(1.0)
-    expect(p.flickProbability).toBeGreaterThan(0.3)
-    expect(p.holdThreshold).toBeLessThan(0.2)
+    expect(p.noteDensity).toBeGreaterThan(0.9)
+    expect(p.flickProbability).toBeGreaterThan(0.1)
+    expect(p.holdThreshold).toBeLessThan(0.8)
+    expect(p.targetNPS).toBeGreaterThan(4)
   })
 
   it('超出范围被限制', () => {

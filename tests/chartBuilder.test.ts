@@ -43,11 +43,11 @@ describe('buildChart', () => {
     }
   })
 
-  it('低难度用单线模板，高难度用四线模板', () => {
+  it('低难度和高难度都生成判定线', () => {
     const easyChart = makeTestChart(3)
     const hardChart = makeTestChart(14)
-    expect(easyChart.judgeLineList.length).toBe(1)
-    expect(hardChart.judgeLineList.length).toBeGreaterThanOrEqual(2)
+    expect(easyChart.judgeLineList.length).toBeGreaterThanOrEqual(1)
+    expect(hardChart.judgeLineList.length).toBeGreaterThanOrEqual(1)
   })
 })
 

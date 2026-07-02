@@ -72,11 +72,11 @@ describe('parseChart', () => {
       judgeLineList: [{
         Group: 0, Name: 'line1', Texture: '', bpmfactor: 1,
         eventLayers: [{
-          alphaEvents: [{ startTime: [0, 0, 1], endTime: [1, 0, 1], startValue: 1, endValue: 1, easing: 1 }],
+          alphaEvents: [{ startTime: [0, 0, 1], endTime: [1, 0, 1], start: 1, end: 1, easingType: 1 }],
           moveXEvents: [],
           moveYEvents: [],
           rotateEvents: [],
-          speedEvents: [{ startTime: [0, 0, 1], endTime: [100, 0, 1], value: 0.6, linkgroup: 0 }],
+          speedEvents: [{ startTime: [0, 0, 1], endTime: [100, 0, 1], start: 6, end: 6, linkgroup: 0 }],
         }],
         father: -1, isCover: 1, notes: [], numOfNotes: 0,
         posControl: [], sizeControl: [], skewControl: [], yControl: [], zOrder: 0,
