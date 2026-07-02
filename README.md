@@ -1,50 +1,28 @@
-# React + TypeScript + Vite
+# 音律魔女 (PhiMystra)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+AI 音游制谱器 —— 导入音频，自动生成 Phigros/Phira 谱面。
 
-Currently, two official plugins are available:
+## 仓库结构
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+| 文件夹 | 说明 |
+|--------|------|
+| **安装包** | 所有平台安装包下载链接 |
+| **源代码** | 完整项目源代码 |
 
-## Expanding the ESLint configuration
+## 快速开始
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+1. 前往 [安装包](./安装包) 文件夹下载对应平台的安装包
+2. 安装后打开应用，导入音频文件
+3. 点击「分析节奏」→「生成谱面」→ 预览/导出 `.pez`
 
-- Configure the top-level `parserOptions` property like this:
+## 技术栈
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+Tauri 2 + React 18 + TypeScript + Vite + Rust
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+## 开发
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+```bash
+cd 源代码
+npm install
+npm run dev
 ```
