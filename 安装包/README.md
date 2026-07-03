@@ -1,17 +1,32 @@
 # 安装包下载
 
-## 最新版本 v0.1.2
+## 最新版本 v0.1.7
+
+### Android
+- [PhiMystra_0.1.7_android_universal.apk](https://github.com/zhuolingshi/phimystra/releases/download/v0.1.7/PhiMystra_0.1.7_android_universal.apk)（64MB，支持手机和平板）
 
 ### Windows
-- [PhiMystra_0.1.2_windows_x64.exe](https://github.com/zhuolingshi/phimystra/releases/download/v0.1.2/PhiMystra_0.1.2_windows_x64.exe)（推荐，免安装便携版，下载即用）
-- [PhiMystra_0.1.2_x64-setup.exe](https://github.com/zhuolingshi/phimystra/releases/download/v0.1.2/PhiMystra_0.1.2_x64-setup.exe)（NSIS 安装包）
-- [PhiMystra_0.1.2_x64_en-US.msi](https://github.com/zhuolingshi/phimystra/releases/download/v0.1.2/PhiMystra_0.1.2_x64_en-US.msi)（MSI 安装包）
+- [PhiMystra_0.1.7_x64-setup.exe](https://github.com/zhuolingshi/phimystra/releases/download/v0.1.7/PhiMystra_0.1.7_x64-setup.exe)（6.4MB，NSIS 安装包）
 
 ### Linux
-- [PhiMystra_0.1.2_amd64.deb](https://github.com/zhuolingshi/phimystra/releases/download/v0.1.2/PhiMystra_0.1.2_amd64.deb)（Debian/Ubuntu）
+- [PhiMystra_0.1.7_amd64.deb](https://github.com/zhuolingshi/phimystra/releases/download/v0.1.7/PhiMystra_0.1.7_amd64.deb)（7.3MB，Debian/Ubuntu）
 
 ---
 
-> 国内用户如下载缓慢，可使用加速链接：
-> [Windows 便携版（加速）](https://gh-proxy.com/https://github.com/zhuolingshi/phimystra/releases/download/v0.1.2/PhiMystra_0.1.2_windows_x64.exe)
-> [Linux 安装包（加速）](https://gh-proxy.com/https://github.com/zhuolingshi/phimystra/releases/download/v0.1.2/PhiMystra_0.1.2_amd64.deb)
+### 国内加速下载
+如果 GitHub 下载缓慢，可使用加速链接：
+
+- [Android APK（加速）](https://mirror.ghproxy.com/https://github.com/zhuolingshi/phimystra/releases/download/v0.1.7/PhiMystra_0.1.7_android_universal.apk)
+- [Windows 安装包（加速）](https://mirror.ghproxy.com/https://github.com/zhuolingshi/phimystra/releases/download/v0.1.7/PhiMystra_0.1.7_x64-setup.exe)
+- [Linux 安装包（加速）](https://mirror.ghproxy.com/https://github.com/zhuolingshi/phimystra/releases/download/v0.1.7/PhiMystra_0.1.7_amd64.deb)
+
+---
+
+### v0.1.7 更新内容
+- 单级返回菜单（全平台）
+- 安卓系统返回键 + 左滑返回手势
+- 记忆功能（最近生成，7天有效）
+- 平板适配（折叠屏、横竖屏）
+- 视频转音频
+- Windows 更新渠道
+- 分平台版本检测
