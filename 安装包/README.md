@@ -11,6 +11,15 @@
 ### Linux
 - [PhiMystra_0.1.7_amd64.deb](https://github.com/zhuolingshi/phimystra/releases/download/v0.1.7/PhiMystra_0.1.7_amd64.deb)（7.3MB，Debian/Ubuntu）
 
+### HarmonyOS（鸿蒙）
+- 🚧 敬请期待
+
+### iOS
+- 🚧 敬请期待
+
+### macOS
+- 🚧 敬请期待
+
 ---
 
 ### 国内加速下载
