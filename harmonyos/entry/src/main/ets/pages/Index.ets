@@ -13,7 +13,7 @@ import { render, RenderOptions } from '../utils/renderer'
 import { checkForUpdate, UpdateInfo } from '../utils/updater'
 import { APP_VERSION } from '../utils/appState'
 import { ThemeMode, loadThemeMode, saveThemeMode, getResourceTheme, AppTheme } from '../utils/theme'
-import { pickAudioFile, pickVideoFile, pickImageFile, saveViaPicker, PickedFile } from '../utils/filePicker'
+import { pickAudioFile, pickVideoFile, pickImageFile, saveViaPicker, saveBinaryViaPicker, PickedFile } from '../utils/filePicker'
 import { textureManager } from '../utils/textureManager'
 import { PreviewAudioPlayer } from '../utils/previewAudioPlayer'
 
@@ -236,11 +236,17 @@ struct Index {
       this.chart.META.composer = this.composer || '未知'
       this.chart.META.charter = this.charter || 'PhiMystra'
 
-      const jsonStr = JSON.stringify(this.chart, null, 2)
-      const filename = `${name}.json`
-      const savedPath = await saveViaPicker(filename, jsonStr)
+      const result = exportPez({
+        chart: this.chart,
+        audioData: this.audioData,
+        audioFormat: this.audioFormat,
+        coverData: this.backgroundData ?? undefined,
+        filename: `${name}.pez`
+      })
+
+      const savedPath = await saveBinaryViaPicker(result.filename, result.data)
       this.exportOk = true
-      this.exportMsg = `导出成功！已保存到:\n${savedPath}`
+      this.exportMsg = `导出成功！${result.filename}（${(result.size / 1024).toFixed(0)} KB）`
     } catch (e) {
       this.exportOk = false
       const err = e as Error
