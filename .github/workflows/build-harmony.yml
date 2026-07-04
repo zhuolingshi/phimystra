@@ -140,6 +140,16 @@ jobs:
           ln -sf "$CLT_DIR/hvigor/hvigor-ohos-plugin" node_modules/@ohos/hvigor-ohos-plugin
 
           chmod +x hvigorw
+          # Find multimedia headers for C++ compilation
+          echo "=== Finding native_avsource.h ==="
+          find "$SDK_HOME" -name "native_avsource.h" 2>/dev/null
+          echo "=== Finding all native_av*.h ==="
+          find "$SDK_HOME" -name "native_av*.h" 2>/dev/null | head -20
+          echo "=== HMS include dir contents ==="
+          ls "$CLT_DIR/sdk/default/hms/native/sysroot/usr/include/" 2>/dev/null | head -20
+          echo "=== OHOS_SDK_NATIVE CMake variable check ==="
+          echo "OHOS_SDK_NATIVE=$OHOS_SDK_NATIVE"
+
           ./hvigorw assembleHap --mode module -p product=default --no-daemon --stacktrace 2>&1 || {
             echo "=== Build failed. Dumping diagnostics ==="
             CLT_DIR="$HOME/harmonyos-sdk/command-line-tools"

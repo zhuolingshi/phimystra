@@ -5,6 +5,11 @@ set(CMAKE_CXX_STANDARD 17)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
+# Add SDK multimedia header include paths
+if(DEFINED OHOS_SDK_NATIVE)
+    include_directories(${OHOS_SDK_NATIVE}/sysroot/usr/include)
+endif()
+
 add_library(audio_decoder SHARED
     audio_decoder_napi.cpp
 )
