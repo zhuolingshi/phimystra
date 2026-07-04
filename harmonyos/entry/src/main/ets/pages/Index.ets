@@ -284,7 +284,7 @@ struct Index {
       fileIo.closeSync(f4)
 
       step = 'zip'
-      const zipPath = `${ctx.cacheDir}/${name}.pez`
+      const zipPath = `${ctx.cacheDir}/temp_export.zip`
       try { fileIo.unlinkSync(zipPath) } catch { /* ignore */ }
       const zipOpts: zlib.Options = {
         level: zlib.CompressLevel.COMPRESS_LEVEL_DEFAULT_COMPRESSION,
