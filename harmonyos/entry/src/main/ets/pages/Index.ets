@@ -239,7 +239,7 @@ struct Index {
 
       const savedPath = await saveFileToDownloads(result.filename, result.data)
       this.exportOk = true
-      this.exportMsg = `导出成功！${result.filename}（${(result.size / 1024).toFixed(0)} KB）`
+      this.exportMsg = `导出成功！${result.filename}（${(result.size / 1024).toFixed(0)} KB）\n路径: ${savedPath}`
     } catch (e) {
       this.exportOk = false
       this.exportMsg = `导出失败：${e.message ?? e}`
@@ -570,15 +570,24 @@ struct Index {
           .padding(16)
       }
 
-      Button('导出谱面包')
+      Button(this.isExporting ? '正在导出...' : '导出谱面包')
         .width('100%')
         .height(52)
         .fontSize(17)
         .fontColor($r('app.color.accent_text'))
-        .backgroundColor('#FF9800')
+        .backgroundColor(this.isExporting ? $r('app.color.bg_card') : '#FF9800')
         .borderRadius(24)
+        .enabled(!this.isExporting)
         .onClick(() => this.handleExport())
         .margin({ top: 12 })
+
+      if (this.exportMsg.length > 0) {
+        Text(this.exportMsg)
+          .fontSize(14)
+          .fontColor(this.exportOk ? '#34C759' : '#FF9800')
+          .padding(12)
+          .margin({ top: 8 })
+      }
 
       Button('重新生成')
         .width('100%')
