@@ -562,6 +562,34 @@ struct Index {
         .fontWeight(FontWeight.Bold)
         .fontColor($r('app.color.text_primary'))
         .padding(20)
+
+      if (this.genResult) {
+        Text(`BPM: ${this.bpm}  音符: ${this.noteCount}  判定线: ${this.lineCount}`)
+          .fontSize(15)
+          .fontColor($r('app.color.text_secondary'))
+          .padding(16)
+      }
+
+      Button('导出谱面包')
+        .width('100%')
+        .height(52)
+        .fontSize(17)
+        .fontColor($r('app.color.accent_text'))
+        .backgroundColor('#FF9800')
+        .borderRadius(24)
+        .onClick(() => this.handleExport())
+        .margin({ top: 12 })
+
+      Button('重新生成')
+        .width('100%')
+        .height(48)
+        .fontSize(15)
+        .fontColor($r('app.color.text_secondary'))
+        .backgroundColor($r('app.color.bg_card'))
+        .borderRadius(24)
+        .border({ width: 1, color: $r('app.color.border') })
+        .onClick(() => { this.chart = null; this.genResult = null; this.processedChart = null; this.stopPreview() })
+        .margin({ top: 8 })
     }
     .width('100%')
   }
