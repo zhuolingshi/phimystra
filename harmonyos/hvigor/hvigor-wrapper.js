@@ -28,6 +28,15 @@ function ensureHvigorInstalled(version) {
     const hvigorEntry = path.join(cachePath, 'node_modules', '@ohos', 'hvigor', 'bin', 'hvigor.js')
     if (fs.existsSync(hvigorEntry)) return hvigorEntry
 
+    // Try SDK bundled packages (CI environment)
+    const sdkHome = process.env.DEVECO_SDK_HOME || process.env.HOS_SDK_HOME || ''
+    if (sdkHome) {
+        const sdkEntry = path.join(sdkHome, 'command-line-tools', 'hvigor', 'hvigor', 'bin', 'hvigor.js')
+        if (fs.existsSync(sdkEntry)) {
+            return sdkEntry
+        }
+    }
+
     fs.mkdirSync(cachePath, { recursive: true })
     const pkgJson = { name: 'hvigor-project-cache', version: '1.0.0', dependencies: {} }
     pkgJson.dependencies['@ohos/hvigor'] = version
