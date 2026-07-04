@@ -197,7 +197,8 @@ struct Index {
       this.processedChart = parseChart(result.chart)
       this.previewDuration = this.processedChart.duration
     } catch (e) {
-      this.genError = `生成失败: ${e.message ?? e}`
+      const err = e as Error
+      this.genError = `生成失败: ${err.message ?? JSON.stringify(e)}`
     } finally {
       this.isGenerating = false
     }

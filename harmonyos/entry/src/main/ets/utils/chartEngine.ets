@@ -28,7 +28,7 @@ export function generateChart(params: GenerateChartParams): ChartGenerationResul
   if (params.playstyle) {
     difficulty = applyPlaystyle(difficulty, params.playstyle)
   }
-  const notes = generateNotes(params.analysis.onsets, difficulty, params.analysis.bpm, seed, params.analysis.segments)
+  const notes = generateNotes(params.analysis.onsets, difficulty, params.analysis.bpm, seed, params.analysis.segments, params.analysis.duration)
   const chart = buildChart({
     name: params.songName,
     composer: params.composer,

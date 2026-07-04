@@ -417,11 +417,11 @@ function finalHoldSafetyCheck(notes: Note[], bpm: number): Note[] {
 
 export function generateNotes(
   onsets: Onset[], params: DifficultyParams, bpm: number = 120,
-  seed: number = 42, segments?: MusicSegment[]
+  seed: number = 42, segments?: MusicSegment[], duration: number = 300
 ): Note[] {
   const rand = seededRandom(seed)
 
-  const grid = buildBeatGrid(bpm, 9999, params.beatSubdivision)
+  const grid = buildBeatGrid(bpm, duration, params.beatSubdivision)
   let candidates = snapOnsetsToGrid(onsets, grid, params.beatSubdivision, bpm)
 
   if (candidates.length < 10) {
