@@ -1,7 +1,8 @@
 import { AudioAnalysis } from './audioAnalysis'
-import { RPEChart, Note, createNote, secondsToBeatTime } from '../model/chart'
+import { RPEChart } from '../model/chart'
+import { generateNotes, countNoteTypes } from './noteGenerator'
 import { buildChart, validateChart } from './chartBuilder'
-import { DifficultyParams, Playstyle, levelToParams, applyPlaystyle, levelToRPEString } from './difficultyParams'
+import { DifficultyParams, Playstyle, levelToParams, applyPlaystyle } from './difficultyParams'
 
 export interface ChartGenerationResult {
   chart: RPEChart
@@ -21,49 +22,29 @@ export interface GenerateChartParams {
 }
 
 export function generateChart(params: GenerateChartParams): ChartGenerationResult {
+  const seed = params.seed ?? (Date.now() % 2147483647)
+
   let difficulty = levelToParams(params.difficultyLevel)
   if (params.playstyle) {
     difficulty = applyPlaystyle(difficulty, params.playstyle)
   }
-
-  const bpm = params.analysis.bpm
-  const duration = params.analysis.duration
-  const beatDur = 60 / bpm
-
-  const positions = [-540, -405, -270, -135, 0, 135, 270, 405, 540]
-  const notes: Note[] = []
-  let laneIdx = 4
-  let noteIdx = 0
-  for (let t = beatDur; t < duration - 1; t += beatDur) {
-    if (noteIdx % 2 === 0) {
-      laneIdx = (laneIdx + 1 + Math.floor(Math.random() * 3)) % 9
-    }
-    notes.push(createNote(1, secondsToBeatTime(t, bpm), secondsToBeatTime(t, bpm), 1, 1, positions[laneIdx]))
-    noteIdx++
-  }
-
+  const notes = generateNotes(params.analysis.onsets, difficulty, params.analysis.bpm, seed, params.analysis.segments, params.analysis.duration)
   const chart = buildChart({
     name: params.songName,
     composer: params.composer,
     charter: params.charter,
     notes: notes,
     difficulty: difficulty,
-    duration: duration,
-    bpm: bpm
+    duration: params.analysis.duration,
+    bpm: params.analysis.bpm
   })
 
   const errors = validateChart(chart)
 
-  const counts = new Map<string, number>()
-  counts.set('tap', notes.length)
-  counts.set('hold', 0)
-  counts.set('flick', 0)
-  counts.set('drag', 0)
-
   return {
     chart: chart,
     noteCount: notes.length,
-    noteTypeCounts: counts,
+    noteTypeCounts: countNoteTypes(notes),
     validationErrors: errors
   }
 }

@@ -173,12 +173,17 @@ struct Index {
     }
   }
 
-  private handleGenerate(): void {
+  private async handleGenerate(): Promise<void> {
     if (!this.analysis) return
     this.isGenerating = true
     this.genError = ''
+    console.info('[PhiMystra] handleGenerate: START')
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 50))
+    console.info('[PhiMystra] handleGenerate: after delay')
 
     try {
+      console.info('[PhiMystra] handleGenerate: calling generateChart')
       const result = generateChart({
         analysis: this.analysis,
         difficultyLevel: this.difficulty,
@@ -187,25 +192,26 @@ struct Index {
         composer: this.composer || '未知',
         charter: this.charter || 'PhiMystra'
       })
-
-      if (result.validationErrors.length > 0) {
-        this.genError = `警告: ${result.validationErrors.join(', ')}`
-      }
+      console.info(`[PhiMystra] handleGenerate: generateChart done, notes=${result.noteCount}`)
 
       this.chart = result.chart
       this.genResult = result
+      console.info('[PhiMystra] handleGenerate: chart state set')
 
       try {
         this.processedChart = parseChart(result.chart)
         this.previewDuration = this.processedChart.duration
+        console.info('[PhiMystra] handleGenerate: parseChart done')
       } catch (e2) {
         console.error('[PhiMystra] parseChart error: ' + JSON.stringify(e2))
       }
     } catch (e) {
       const err = e as Error
       this.genError = `生成失败: ${err.message ?? JSON.stringify(e)}`
+      console.error('[PhiMystra] generate error: ' + this.genError)
     } finally {
       this.isGenerating = false
+      console.info('[PhiMystra] handleGenerate: END')
     }
   }
 
