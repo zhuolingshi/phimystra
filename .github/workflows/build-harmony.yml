@@ -54,17 +54,19 @@ jobs:
 
           cd "$SDK_HOME"
 
-          # Merge split parts and extract
+          # Merge split parts and extract 7z → zip
           echo "=== Merging split parts ==="
           cat commandline-tools-linux-x64-6.1.0.830.7z.0* > commandline-tools-linux-x64-6.1.0.830-merged.7z
-          echo "Merged file size: $(du -h commandline-tools-linux-x64-6.1.0.830-merged.7z | cut -f1)"
 
-          echo "=== Extracting ==="
+          echo "=== Extracting 7z ==="
           7z x commandline-tools-linux-x64-6.1.0.830-merged.7z -y
-
-          echo "=== After extraction ==="
           rm -f commandline-tools-linux-x64-6.1.0.830-merged.7z
           rm -f commandline-tools-linux-x64-6.1.0.830.7z.0*
+
+          # Extract zip → actual SDK
+          echo "=== Extracting zip ==="
+          unzip -q -o commandline-tools-linux-x64-6.1.0.830.zip
+          rm -f commandline-tools-linux-x64-6.1.0.830.zip
 
           echo "=== Disk usage ==="
           du -sh "$SDK_HOME"
