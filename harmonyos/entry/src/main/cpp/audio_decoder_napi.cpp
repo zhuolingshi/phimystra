@@ -8,8 +8,10 @@
 
 #include "native_avsource.h"
 #include "native_avdemuxer.h"
-#include "native_avcodec.h"
+#include "native_avcodec_audiodecoder.h"
+#include "native_avcodec_audiocodec.h"
 #include "native_avformat.h"
+#include "native_averrors.h"
 
 struct DecodeContext {
     OH_AVSource* source = nullptr;
