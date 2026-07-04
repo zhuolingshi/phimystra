@@ -78,7 +78,12 @@ export async function saveBinaryViaPicker(filename: string, data: Uint8Array): P
   if (!uris || uris.length === 0) throw new Error('用户取消保存')
 
   const file = fileIo.openSync(uris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-  fileIo.writeSync(file.fd, data.buffer)
+  const buf = new ArrayBuffer(data.byteLength)
+  const view = new Uint8Array(buf)
+  for (let i = 0; i < data.byteLength; i++) {
+    view[i] = data[i]
+  }
+  fileIo.writeSync(file.fd, buf)
   fileIo.closeSync(file)
   return uris[0]
 }
