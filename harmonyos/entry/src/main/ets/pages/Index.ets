@@ -159,11 +159,15 @@ struct Index {
   private async handleAnalyze(): Promise<void> {
     if (!this.decodedAudio) return
     this.isAnalyzing = true
+    this.genError = ''
     try {
+      await new Promise<void>((resolve) => setTimeout(resolve, 50))
       const result = analyzeAudio(this.decodedAudio)
       this.analysis = result
     } catch (e) {
-      console.error('[PhiMystra] analyze error: ' + JSON.stringify(e))
+      const msg = (e as Error).message ?? JSON.stringify(e)
+      this.genError = `分析失败: ${msg}`
+      console.error('[PhiMystra] analyze error: ' + msg)
     } finally {
       this.isAnalyzing = false
     }

@@ -112,15 +112,12 @@ async function decodeCompressed(data: Uint8Array, format: string): Promise<Decod
   const estimatedBitrate = 16000
   let duration = data.byteLength / estimatedBitrate
   if (duration < 10) duration = 180
-  if (duration > 600) duration = 600
+  if (duration > 300) duration = 300
 
-  const sampleRate = 44100
-  const numChannels = 2
+  const sampleRate = 8000
+  const numChannels = 1
   const numSamples = Math.floor(duration * sampleRate)
-  const channelData: Float32Array[] = []
-  for (let ch = 0; ch < numChannels; ch++) {
-    channelData.push(new Float32Array(numSamples))
-  }
+  const pcm = new Float32Array(numSamples)
 
   const seed = data.byteLength
   for (let i = 0; i < numSamples; i++) {
@@ -128,9 +125,7 @@ async function decodeCompressed(data: Uint8Array, format: string): Promise<Decod
     const beatPhase = t * 2 * Math.PI * 2.0
     const pseudoNoise = ((seed + i) % 1000) / 1000.0 * 0.1
     const envelope = 0.3 + 0.2 * Math.sin(t * 0.5)
-    const sample = (envelope * Math.sin(beatPhase) + pseudoNoise) * 0.4
-    channelData[0][i] = sample
-    channelData[1][i] = sample
+    pcm[i] = (envelope * Math.sin(beatPhase) + pseudoNoise) * 0.4
   }
 
   return {
@@ -138,7 +133,7 @@ async function decodeCompressed(data: Uint8Array, format: string): Promise<Decod
     numberOfChannels: numChannels,
     length: numSamples,
     duration,
-    channelData
+    channelData: [pcm]
   }
 }
 
