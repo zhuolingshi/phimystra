@@ -1,6 +1,7 @@
 import { common, Want } from '@kit.AbilityKit'
 import { http } from '@kit.NetworkKit'
 import { router } from '@kit.ArkUI'
+import { fileIo } from '@kit.CoreFileKit'
 import { AudioAnalysis, DecodedAudioData, analyzeAudio } from '../utils/audioAnalysis'
 import { RPEChart, NOTE_HEIGHT } from '../model/chart'
 import { generateChart, ChartGenerationResult } from '../utils/chartEngine'
@@ -29,6 +30,9 @@ struct Index {
   @State genResult: ChartGenerationResult | null = null
   @State isGenerating: boolean = false
   @State genError: string = ''
+  @State statNoteCount: number = 0
+  @State statLineCount: number = 0
+  @State statBpm: number = 0
   @State difficulty: number = 10
   @State playstyle: Playstyle = Playstyle.TwoFinger
   @State songName: string = ''
@@ -199,6 +203,9 @@ struct Index {
 
       this.chart = result.chart
       this.genResult = result
+      this.statBpm = this.analysis.bpm
+      this.statNoteCount = result.noteCount
+      this.statLineCount = result.chart.judgeLineList.length
       console.info('[PhiMystra] handleGenerate: chart state set')
 
       try {
@@ -224,28 +231,24 @@ struct Index {
     this.exportMsg = ''
 
     try {
-      const audioData = new Uint8Array(this.audioData)
-      const audioFmt = this.audioFormat
-
       const name = this.songName || this.audioName.replace(/\.[^.]+$/, '') || 'chart'
       this.chart.META.name = name
       this.chart.META.composer = this.composer || '未知'
       this.chart.META.charter = this.charter || 'PhiMystra'
 
-      const result = exportPez({
-        chart: this.chart,
-        audioData: audioData,
-        audioFormat: audioFmt,
-        coverData: this.backgroundData ?? undefined,
-        filename: `${name}.zip`
-      })
-
-      const savedPath = await saveFileToDownloads(result.filename, result.data)
+      const jsonStr = JSON.stringify(this.chart, null, 2)
+      const filename = `${name}.json`
+      const ctx = globalThis.ctx as common.UIAbilityContext
+      const filePath = `${ctx.cacheDir}/${filename}`
+      const file = fileIo.openSync(filePath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+      fileIo.writeSync(file.fd, jsonStr)
+      fileIo.closeSync(file)
       this.exportOk = true
-      this.exportMsg = `导出成功！${result.filename}（${(result.size / 1024).toFixed(0)} KB）\n路径: ${savedPath}`
+      this.exportMsg = `导出成功！${filename}\n路径: ${filePath}`
     } catch (e) {
       this.exportOk = false
-      this.exportMsg = `导出失败：${e.message ?? e}`
+      const err = e as Error
+      this.exportMsg = `导出失败: ${err.message ?? JSON.stringify(e)}`
     } finally {
       this.isExporting = false
     }
@@ -567,7 +570,7 @@ struct Index {
         .padding(20)
 
       if (this.genResult) {
-        Text(`BPM: ${this.analysis ? this.analysis.bpm : 0}  音符: ${this.noteCount}  判定线: ${this.lineCount}`)
+        Text(`BPM: ${this.statBpm}  音符: ${this.statNoteCount}  判定线: ${this.statLineCount}`)
           .fontSize(15)
           .fontColor($r('app.color.text_secondary'))
           .padding(16)
