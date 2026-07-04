@@ -101,9 +101,55 @@ jobs:
         working-directory: harmonyos
         run: |
           SDK_HOME="$HOME/harmonyos-sdk"
-          HVIGORW="$SDK_HOME/command-line-tools/hvigor/bin/hvigorw"
+          CLT_DIR="$SDK_HOME/command-line-tools"
+          HVIGORW="$CLT_DIR/hvigor/bin/hvigorw"
 
-          echo "=== Using SDK hvigorw: $HVIGORW ==="
+          # Read bundled versions
+          HVIGOR_VER=$(node -p "require('$CLT_DIR/hvigor/hvigor/package.json').version")
+          PLUGIN_VER=$(node -p "require('$CLT_DIR/hvigor/hvigor-ohos-plugin/package.json').version")
+          echo "Bundled hvigor: $HVIGOR_VER, plugin: $PLUGIN_VER"
+
+          # Update project config to match SDK version
+          cat > hvigor/hvigor-config.json5 << EOF
+          {
+            "hvigorVersion": "$HVIGOR_VER",
+            "dependencies": {
+              "@ohos/hvigor-ohos-plugin": "$PLUGIN_VER"
+            },
+            "execution": {},
+            "logging": { "level": "info" },
+            "debugging": { "quiet": false },
+            "nodeOptions": {}
+          }
+          EOF
+
+          # Pre-install bundled packages into hvigor cache
+          # Pack as tarballs
+          cd /tmp
+          npm pack "$CLT_DIR/hvigor/hvigor" 2>/dev/null
+          npm pack "$CLT_DIR/hvigor/hvigor-ohos-plugin" 2>/dev/null
+
+          # Find the cache workspace dir that hvigorw will use
+          # Pre-create and install
+          CACHE_BASE="$HOME/.hvigor/project_caches"
+          mkdir -p "$CACHE_BASE/$HVIGOR_VER/workspace"
+          cd "$CACHE_BASE/$HVIGOR_VER/workspace"
+
+          cat > package.json << EOF
+          {
+            "name": "hvigor-project-cache",
+            "version": "1.0.0",
+            "dependencies": {
+              "@ohos/hvigor": "file:/tmp/ohos-hvigor-$HVIGOR_VER.tgz",
+              "@ohos/hvigor-ohos-plugin": "file:/tmp/ohos-hvigor-ohos-plugin-$PLUGIN_VER.tgz"
+            }
+          }
+          EOF
+
+          echo "Installing bundled hvigor packages..."
+          npm install --no-audit --prefer-offline 2>&1 | tail -5
+
+          echo "=== Running build ==="
           chmod +x "$HVIGORW"
           "$HVIGORW" assembleHap --mode module -p product=default --no-daemon \
             -p project=$GITHUB_WORKSPACE/harmonyos 2>&1
