@@ -110,7 +110,7 @@ jobs:
 
           cat > hvigor/hvigor-config.json5 << EOF
           {
-            "modelVersion": "$HVIGOR_VER",
+            "modelVersion": "5.0.0",
             "hvigorVersion": "$HVIGOR_VER",
             "dependencies": {
               "@ohos/hvigor-ohos-plugin": "$PLUGIN_VER"
