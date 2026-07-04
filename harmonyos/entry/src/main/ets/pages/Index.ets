@@ -13,7 +13,7 @@ import { render, RenderOptions } from '../utils/renderer'
 import { checkForUpdate, UpdateInfo } from '../utils/updater'
 import { APP_VERSION } from '../utils/appState'
 import { ThemeMode, loadThemeMode, saveThemeMode, getResourceTheme, AppTheme } from '../utils/theme'
-import { pickAudioFile, pickVideoFile, pickImageFile, saveFileToDownloads, PickedFile } from '../utils/filePicker'
+import { pickAudioFile, pickVideoFile, pickImageFile, saveViaPicker, PickedFile } from '../utils/filePicker'
 import { textureManager } from '../utils/textureManager'
 import { PreviewAudioPlayer } from '../utils/previewAudioPlayer'
 
@@ -238,13 +238,9 @@ struct Index {
 
       const jsonStr = JSON.stringify(this.chart, null, 2)
       const filename = `${name}.json`
-      const ctx = globalThis.ctx as common.UIAbilityContext
-      const filePath = `${ctx.cacheDir}/${filename}`
-      const file = fileIo.openSync(filePath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-      fileIo.writeSync(file.fd, jsonStr)
-      fileIo.closeSync(file)
+      const savedPath = await saveViaPicker(filename, jsonStr)
       this.exportOk = true
-      this.exportMsg = `导出成功！${filename}\n路径: ${filePath}`
+      this.exportMsg = `导出成功！已保存到:\n${savedPath}`
     } catch (e) {
       this.exportOk = false
       const err = e as Error

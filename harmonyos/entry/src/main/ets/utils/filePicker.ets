@@ -57,16 +57,15 @@ async function readFileFromUri(uri: string): Promise<PickedFile> {
   return { name, data: new Uint8Array(buffer), uri }
 }
 
-export async function saveFileToDownloads(filename: string, data: Uint8Array): Promise<string> {
-  try {
-    const ctx = globalThis.ctx as common.UIAbilityContext
-    const filePath = `${ctx.cacheDir}/${filename}`
-    const file = fileIo.openSync(filePath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-    fileIo.writeSync(file.fd, data)
-    fileIo.closeSync(file)
-    return filePath
-  } catch (e) {
-    console.error('[FileSave] error: ' + JSON.stringify(e))
-    throw new Error(JSON.stringify(e))
-  }
+export async function saveViaPicker(filename: string, content: string): Promise<string> {
+  const saveOpt = new picker.DocumentSaveOptions()
+  saveOpt.newFileNames = [filename]
+  const docPicker = new picker.DocumentViewPicker()
+  const uris = await docPicker.save(saveOpt)
+  if (!uris || uris.length === 0) throw new Error('用户取消保存')
+
+  const file = fileIo.openSync(uris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+  fileIo.writeSync(file.fd, content)
+  fileIo.closeSync(file)
+  return uris[0]
 }
