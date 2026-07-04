@@ -255,7 +255,7 @@ struct Index {
       const origSong = this.chart.META.song
       const origBg = this.chart.META.background
       this.chart.META.song = musicFile
-      this.chart.META.background = pngFile
+      this.chart.META.background = ''
       this.chart.META.id = pathId
       const chartJson = JSON.stringify(this.chart, null, 2)
       this.chart.META.song = origSong
@@ -268,7 +268,7 @@ struct Index {
         'Name: ' + m.name + nl +
         'Path: ' + pathId + nl +
         'Song: ' + musicFile + nl +
-        'Picture: ' + pngFile + nl +
+        'Picture: ' + nl +
         'Chart: ' + chartFile + nl +
         'Level: ' + m.level + nl +
         'Composer: ' + m.composer + nl +
@@ -282,7 +282,7 @@ struct Index {
         'illustrator: ' + JSON.stringify('AI') + nl +
         'chart: ' + JSON.stringify(chartFile) + nl +
         'music: ' + JSON.stringify(musicFile) + nl +
-        'illustration: ' + JSON.stringify(pngFile) + nl +
+        'illustration: ' + JSON.stringify('') + nl +
         'previewStart: 0.0' + nl +
         'previewEnd: null' + nl +
         'aspectRatio: 1.7777778' + nl +
@@ -299,33 +299,12 @@ struct Index {
       this.writeString(tempDir + '/info.txt', infoTxt)
       this.writeString(tempDir + '/info.yml', infoYml)
 
-      const pngBytes: number[] = [
-        137, 80, 78, 71, 13, 10, 26, 10,
-        0, 0, 0, 13, 73, 72, 68, 82,
-        0, 0, 0, 1, 0, 0, 0, 1,
-        8, 6, 0, 0, 0, 31, 21, 196, 137,
-        0, 0, 0, 10, 73, 68, 65, 84,
-        120, 156, 99, 96, 0, 0, 0, 0, 2, 0, 1,
-        50, 217, 28, 177,
-        0, 0, 0, 0, 73, 69, 78, 68,
-        174, 66, 96, 130
-      ]
-      const pngBuf = new ArrayBuffer(pngBytes.length)
-      const pngView = new Uint8Array(pngBuf)
-      for (let i = 0; i < pngBytes.length; i++) {
-        pngView[i] = pngBytes[i]
-      }
-      const fPng = fileIo.openSync(tempDir + '/' + pngFile, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-      fileIo.writeSync(fPng.fd, pngBuf)
-      fileIo.closeSync(fPng)
-
       step = 'read-files'
       const fileMap = new Map<string, ArrayBuffer>()
       fileMap.set(chartFile, this.readFileBuf(tempDir + '/chart.json'))
       fileMap.set(musicFile, this.readFileBuf(this.audioUri))
       fileMap.set('info.txt', this.readFileBuf(tempDir + '/info.txt'))
       fileMap.set('info.yml', this.readFileBuf(tempDir + '/info.yml'))
-      fileMap.set(pngFile, this.readFileBuf(tempDir + '/' + pngFile))
 
       step = 'zip'
       const zipPath = `${ctx.cacheDir}/temp_export.zip`
