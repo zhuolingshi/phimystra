@@ -95,10 +95,14 @@ export async function saveFileViaPicker(filename: string, srcPath: string): Prom
   const uris = await docPicker.save(saveOpt)
   if (!uris || uris.length === 0) throw new Error('用户取消保存')
 
+  const stat = fileIo.statSync(srcPath)
   const srcFile = fileIo.openSync(srcPath, fileIo.OpenMode.READ_ONLY)
-  const destFile = fileIo.openSync(uris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-  fileIo.copyFile(srcFile.fd, destFile.fd)
+  const buf = new ArrayBuffer(stat.size)
+  fileIo.readSync(srcFile.fd, buf)
   fileIo.closeSync(srcFile)
+
+  const destFile = fileIo.openSync(uris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+  fileIo.writeSync(destFile.fd, buf)
   fileIo.closeSync(destFile)
   return uris[0]
 }
