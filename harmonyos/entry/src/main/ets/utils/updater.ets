@@ -71,7 +71,7 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
   }
 }
 
-function noUpdate(version: string): UpdateInfo {
+function networkError(version: string): UpdateInfo {
   return {
     hasUpdate: false,
     latestVersion: version,

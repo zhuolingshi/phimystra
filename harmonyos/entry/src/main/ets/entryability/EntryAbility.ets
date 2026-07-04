@@ -1,6 +1,6 @@
 import { UIAbility, AbilityConstant, Want } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
-import { ConfigurationConstant } from '@kit.AbilityKit'
+import Configuration from '@ohos.app.ability.Configuration'
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -34,7 +34,7 @@ export default class EntryAbility extends UIAbility {
     console.info('[PhiMystra] EntryAbility onBackground')
   }
 
-  onConfigurationUpdate(newConfig: ConfigurationConstant.Configuration): void {
+  onConfigurationUpdate(newConfig: Configuration): void {
     console.info('[PhiMystra] Config updated: ' + JSON.stringify(newConfig))
   }
 }

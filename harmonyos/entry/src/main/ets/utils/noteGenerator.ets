@@ -279,7 +279,9 @@ function generateNotesUnified(
       if (laneIdx > 0) nearBlocked.add(LANE_POSITIONS[laneIdx - 1])
       if (laneIdx < NUM_LANES - 1) nearBlocked.add(LANE_POSITIONS[laneIdx + 1])
     }
-    const allBlocked = new Set<number>([...exactBlocked, ...nearBlocked])
+    const allBlocked = new Set<number>()
+    exactBlocked.forEach(v => { allBlocked.add(v) })
+    nearBlocked.forEach(v => { allBlocked.add(v) })
 
     let recentCount = 0
     for (const r of result) {
@@ -364,19 +366,35 @@ function cleanupHoldConflicts(notes: GeneratedNote[]): GeneratedNote[] {
   return notes.filter((_, i) => !toRemove.has(i))
 }
 
-function beatTimeToSec(note: Note, bpm: number): { start: number; end: number } {
+class TimeRange {
+  start: number = 0
+  end: number = 0
+}
+
+class HoldRange {
+  start: number = 0
+  end: number = 0
+  positionX: number = 0
+}
+
+function beatTimeToSec(note: Note, bpm: number): TimeRange {
   const beatDur = 60 / bpm
-  const start = note.startTime.toBeats() * beatDur
-  const end = note.endTime.toBeats() * beatDur
-  return { start, end }
+  const r = new TimeRange()
+  r.start = note.startTime.toBeats() * beatDur
+  r.end = note.endTime.toBeats() * beatDur
+  return r
 }
 
 function finalHoldSafetyCheck(notes: Note[], bpm: number): Note[] {
-  const holdRanges: { start: number; end: number; positionX: number }[] = []
+  const holdRanges: HoldRange[] = []
   for (const n of notes) {
     if (n.type === NOTE_TYPE_HOLD) {
       const r = beatTimeToSec(n, bpm)
-      holdRanges.push({ start: r.start, end: r.end, positionX: n.positionX })
+      const hr = new HoldRange()
+      hr.start = r.start
+      hr.end = r.end
+      hr.positionX = n.positionX
+      holdRanges.push(hr)
     }
   }
 

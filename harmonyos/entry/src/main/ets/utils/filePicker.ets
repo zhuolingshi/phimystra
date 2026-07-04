@@ -37,9 +37,9 @@ export async function pickImageFile(): Promise<PickedFile | null> {
     option.MIMEType = picker.PhotoViewMIMETypes.IMAGE_TYPE
     option.maxSelectNumber = 1
     const photoPicker = new picker.PhotoViewPicker()
-    const uris = await photoPicker.select(option)
-    if (!uris || uris.length === 0) return null
-    return await readFileFromUri(uris[0])
+    const result = await photoPicker.select(option)
+    if (!result || result.photoUris.length === 0) return null
+    return await readFileFromUri(result.photoUris[0])
   } catch {
     return null
   }
@@ -72,6 +72,6 @@ export async function saveFileToDownloads(filename: string, data: Uint8Array): P
     return filePath
   } catch (e) {
     console.error('[FileSave] error: ' + JSON.stringify(e))
-    throw e
+    throw new Error(JSON.stringify(e))
   }
 }

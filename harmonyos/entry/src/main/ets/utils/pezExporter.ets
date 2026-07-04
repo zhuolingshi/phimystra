@@ -276,7 +276,7 @@ function zipFiles(files: Map<string, Uint8Array>): Uint8Array {
   const localParts: Uint8Array[] = []
   let currentOffset = 0
 
-  for (const [name, raw] of files) {
+  files.forEach((raw: Uint8Array, name: string) => {
     const nameBytes = strToU8(name)
     const crc = crc32(raw, 0, raw.length)
     const localHeaderSize = 30 + nameBytes.length
@@ -300,7 +300,7 @@ function zipFiles(files: Map<string, Uint8Array>): Uint8Array {
     localParts.push(localPart)
     entries.push(new ZipEntry(name, raw, crc, currentOffset))
     currentOffset += localPart.length
-  }
+  })
 
   const centralParts: Uint8Array[] = []
   let centralSize = 0

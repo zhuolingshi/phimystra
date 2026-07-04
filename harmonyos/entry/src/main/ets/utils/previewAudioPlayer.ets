@@ -1,4 +1,5 @@
 import media from '@ohos.multimedia.media'
+import audio from '@ohos.multimedia.audio'
 import { common } from '@kit.AbilityKit'
 import { fileIo } from '@kit.CoreFileKit'
 import { ProcessedChart, ProcessedNote } from './eventParser'
@@ -21,10 +22,12 @@ export class PreviewAudioPlayer {
     fileIo.closeSync(file)
 
     try {
-      this.soundPool = await media.createSoundPool(
-        8,
-        { usage: media.StreamUsage.STREAM_USAGE_GAME, rendererFlags: 0 } as media.AudioRendererInfo
-      )
+      const rendererInfo: audio.AudioRendererInfo = {
+        content: audio.ContentType.CONTENT_TYPE_MUSIC,
+        usage: audio.StreamUsage.STREAM_USAGE_MEDIA,
+        rendererFlags: 0
+      }
+      this.soundPool = await media.createSoundPool(8, rendererInfo)
       await this.loadHitSounds(ctx)
     } catch {
       this.soundPool = null
@@ -50,13 +53,11 @@ export class PreviewAudioPlayer {
 
   private async loadHitSounds(ctx: common.UIAbilityContext): Promise<void> {
     if (!this.soundPool) return
-    const files: Map<number, string> = new Map([
-      [1, 'tap.ogg'],
-      [2, 'tap.ogg'],
-      [3, 'flick.ogg'],
-      [4, 'drag.ogg']
-    ])
-    for (const [type, filename] of files) {
+    const types: number[] = [1, 2, 3, 4]
+    const filenames: string[] = ['tap.ogg', 'tap.ogg', 'flick.ogg', 'drag.ogg']
+    for (let i = 0; i < types.length; i++) {
+      const type = types[i]
+      const filename = filenames[i]
       try {
         const fd = ctx.resourceManager.getRawFdSync(`sounds/${filename}`)
         const id = await this.soundPool.load(fd.fd, fd.offset, fd.length)

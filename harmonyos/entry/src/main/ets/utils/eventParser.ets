@@ -1,4 +1,4 @@
-import { RPEChart, Note, BeatTime, BPMEntry, NOTE_HEIGHT, JudgeLine, EventLayer, AlphaControlEntry, PosControlEntry, SizeControlEntry, SkewControlEntry, YControlEntry } from '../model/chart'
+import { RPEChart, Note, BeatTime, BPMEntry, NOTE_HEIGHT, JudgeLine, EventLayer, AnimationEvent, AlphaControlEntry, PosControlEntry, SizeControlEntry, SkewControlEntry, YControlEntry } from '../model/chart'
 import { getEasingFn } from './easings'
 
 export class ProcessedBPM {
@@ -99,7 +99,7 @@ function processBPMList(bpmEntries: BPMEntry[]): ProcessedBPM[] {
 }
 
 function convertEvents(
-  events: { startTime: BeatTime; endTime: BeatTime; start: number; end: number; easingType?: number; easing?: number }[],
+  events: AnimationEvent[],
   bpmList: ProcessedBPM[]
 ): TimedEvent[] {
   return events.map(e => {
@@ -107,7 +107,7 @@ function convertEvents(
     te.startTime = beatTimeToSeconds(e.startTime, bpmList)
     te.endTime = beatTimeToSeconds(e.endTime, bpmList)
     te.start = e.start; te.end = e.end
-    te.easing = e.easingType ?? e.easing ?? 1
+    te.easing = e.easingType
     return te
   }).sort((a, b) => a.startTime - b.startTime)
 }
@@ -272,12 +272,16 @@ export function parseChart(chart: RPEChart): ProcessedChart {
       moveYEvents = mergeEvents(moveYEvents, convertEvents(layer.moveYEvents, bpmList))
       rotateEvents = mergeEvents(rotateEvents, convertEvents(layer.rotateEvents, bpmList))
       alphaEvents = mergeEvents(alphaEvents, convertEvents(layer.alphaEvents, bpmList))
-      const layerSpeed = convertEvents(
-        layer.speedEvents.map(s => ({
-          startTime: s.startTime, endTime: s.endTime,
-          start: s.start, end: s.end, easingType: 1
-        })), bpmList
-      )
+      const mappedSpeed: AnimationEvent[] = layer.speedEvents.map(s => {
+        const e = new AnimationEvent()
+        e.startTime = s.startTime
+        e.endTime = s.endTime
+        e.start = s.start
+        e.end = s.end
+        e.easingType = 1
+        return e
+      })
+      const layerSpeed = convertEvents(mappedSpeed, bpmList)
       speedEventsRaw = mergeEvents(speedEventsRaw, layerSpeed)
     }
 

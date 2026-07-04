@@ -22,7 +22,22 @@ export class AppState {
 
   clone(): AppState {
     const s = new AppState()
-    Object.assign(s, this)
+    s.audioName = this.audioName
+    s.audioFormat = this.audioFormat
+    s.audioData = this.audioData
+    s.decodedAudio = this.decodedAudio
+    s.analysis = this.analysis
+    s.isAnalyzing = this.isAnalyzing
+    s.chart = this.chart
+    s.difficulty = this.difficulty
+    s.playstyle = this.playstyle
+    s.songName = this.songName
+    s.composer = this.composer
+    s.charter = this.charter
+    s.illustrator = this.illustrator
+    s.backgroundData = this.backgroundData
+    s.isGenerating = this.isGenerating
+    s.genError = this.genError
     return s
   }
 }
