@@ -134,7 +134,16 @@ jobs:
           ln -sf "$CLT_DIR/hvigor/hvigor-ohos-plugin" node_modules/@ohos/hvigor-ohos-plugin
 
           chmod +x hvigorw
-          ./hvigorw assembleHap --mode module -p product=default --no-daemon --stacktrace 2>&1
+          ./hvigorw assembleHap --mode module -p product=default --no-daemon --stacktrace 2>&1 || {
+            echo "=== Build failed. Dumping validate-util source ==="
+            CLT_DIR="$HOME/harmonyos-sdk/command-line-tools"
+            grep -n "modelVersionCheck\|model_version\|MODEL_VERSION\|projectStatusCheck\|upgrade" \
+              "$CLT_DIR/hvigor/hvigor-ohos-plugin/src/utils/validate/validate-util.js" 2>/dev/null | head -20
+            echo "=== Dumping project-model source ==="
+            grep -n "projectStatusCheck\|modelVersion\|MODEL\|upgrade\|00303024" \
+              "$CLT_DIR/hvigor/hvigor-ohos-plugin/src/model/project/core-project-model-impl.js" 2>/dev/null | head -20
+            exit 1
+          }
 
       - name: Upload Build Output
         uses: actions/upload-artifact@v4
