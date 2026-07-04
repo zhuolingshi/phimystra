@@ -13,7 +13,7 @@ import { checkForUpdate, UpdateInfo } from '../utils/updater'
 import { APP_VERSION } from '../utils/appState'
 import { ThemeMode, loadThemeMode, saveThemeMode, getResourceTheme, AppTheme } from '../utils/theme'
 import { pickAudioFile, pickVideoFile, pickImageFile, saveViaPicker, saveFileViaPicker, PickedFile } from '../utils/filePicker'
-import { zlib } from '@kit.BasicServicesKit'
+import { buildZipFile } from '../utils/zipBuilder'
 import { textureManager } from '../utils/textureManager'
 import { PreviewAudioPlayer } from '../utils/previewAudioPlayer'
 
@@ -243,52 +243,36 @@ struct Index {
       const ctx = globalThis.ctx as common.UIAbilityContext
       const tempDir = `${ctx.cacheDir}/pez_temp`
       const pathId = this.chart.META.id || '10000000'
+      const chartFile = `${pathId}.json`
+      const musicFile = `${pathId}.${this.audioFormat}`
+      const pngFile = `${pathId}.png`
 
       step = 'mkdir'
       try { fileIo.rmdirSync(tempDir) } catch { /* ignore */ }
       fileIo.mkdirSync(tempDir, true)
 
-      const chartFile = `${pathId}.json`
-      const musicFile = `${pathId}.${this.audioFormat}`
+      step = 'prepare-chart'
       const origSong = this.chart.META.song
       const origBg = this.chart.META.background
       this.chart.META.song = musicFile
-      this.chart.META.background = ''
+      this.chart.META.background = pngFile
       this.chart.META.id = pathId
-
-      step = 'write-chart'
-      const f1 = fileIo.openSync(`${tempDir}/${chartFile}`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-      fileIo.writeSync(f1.fd, JSON.stringify(this.chart, null, 2))
-      fileIo.closeSync(f1)
-
+      const chartJson = JSON.stringify(this.chart, null, 2)
       this.chart.META.song = origSong
       this.chart.META.background = origBg
 
-      step = 'copy-audio'
-      const audioStat = fileIo.statSync(this.audioUri)
-      const srcAudio = fileIo.openSync(this.audioUri, fileIo.OpenMode.READ_ONLY)
-      const audioBuf = new ArrayBuffer(audioStat.size)
-      fileIo.readSync(srcAudio.fd, audioBuf)
-      fileIo.closeSync(srcAudio)
-      const dstAudio = fileIo.openSync(`${tempDir}/${musicFile}`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-      fileIo.writeSync(dstAudio.fd, audioBuf)
-      fileIo.closeSync(dstAudio)
-
-      step = 'write-info'
+      step = 'prepare-info'
       const m = this.chart.META
       const nl = '\n'
       const infoTxt = '#' + nl +
         'Name: ' + m.name + nl +
         'Path: ' + pathId + nl +
         'Song: ' + musicFile + nl +
-        'Picture: ' + nl +
+        'Picture: ' + pngFile + nl +
         'Chart: ' + chartFile + nl +
         'Level: ' + m.level + nl +
         'Composer: ' + m.composer + nl +
         'Charter: ' + m.charter + nl
-      const f3 = fileIo.openSync(`${tempDir}/info.txt`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-      fileIo.writeSync(f3.fd, infoTxt)
-      fileIo.closeSync(f3)
 
       const infoYml = 'name: ' + JSON.stringify(m.name) + nl +
         'difficulty: 1' + nl +
@@ -298,7 +282,7 @@ struct Index {
         'illustrator: ' + JSON.stringify('AI') + nl +
         'chart: ' + JSON.stringify(chartFile) + nl +
         'music: ' + JSON.stringify(musicFile) + nl +
-        'illustration: ' + JSON.stringify('') + nl +
+        'illustration: ' + JSON.stringify(pngFile) + nl +
         'previewStart: 0.0' + nl +
         'previewEnd: null' + nl +
         'aspectRatio: 1.7777778' + nl +
@@ -309,19 +293,44 @@ struct Index {
         'holdPartialCover: false' + nl +
         'noteUniformScale: false' + nl +
         'forceAspectRatio: false' + nl
-      const f4 = fileIo.openSync(`${tempDir}/info.yml`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-      fileIo.writeSync(f4.fd, infoYml)
-      fileIo.closeSync(f4)
+
+      step = 'write-temp'
+      this.writeString(tempDir + '/chart.json', chartJson)
+      this.writeString(tempDir + '/info.txt', infoTxt)
+      this.writeString(tempDir + '/info.yml', infoYml)
+
+      const pngBytes: number[] = [
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+        0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89,
+        0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41, 0x54,
+        0x78, 0x9c, 0x63, 0x60, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01,
+        0xe2, 0x21, 0xbc, 0x33,
+        0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44,
+        0xae, 0x42, 0x60, 0x82
+      ]
+      const pngBuf = new ArrayBuffer(pngBytes.length)
+      const pngView = new Uint8Array(pngBuf)
+      for (let i = 0; i < pngBytes.length; i++) {
+        pngView[i] = pngBytes[i]
+      }
+      const fPng = fileIo.openSync(tempDir + '/' + pngFile, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+      fileIo.writeSync(fPng.fd, pngBuf)
+      fileIo.closeSync(fPng)
+
+      step = 'read-files'
+      const fileMap = new Map<string, ArrayBuffer>()
+      fileMap.set(chartFile, this.readFileBuf(tempDir + '/chart.json'))
+      fileMap.set(musicFile, this.readFileBuf(this.audioUri))
+      fileMap.set('info.txt', this.readFileBuf(tempDir + '/info.txt'))
+      fileMap.set('info.yml', this.readFileBuf(tempDir + '/info.yml'))
+      fileMap.set(pngFile, this.readFileBuf(tempDir + '/' + pngFile))
 
       step = 'zip'
       const zipPath = `${ctx.cacheDir}/temp_export.zip`
       try { fileIo.unlinkSync(zipPath) } catch { /* ignore */ }
-      const zipOpts: zlib.Options = {
-        level: zlib.CompressLevel.COMPRESS_LEVEL_DEFAULT_COMPRESSION,
-        memLevel: zlib.MemLevel.MEM_LEVEL_DEFAULT,
-        strategy: zlib.CompressStrategy.COMPRESS_STRATEGY_DEFAULT_STRATEGY
-      }
-      await zlib.zipFile(tempDir, zipPath, zipOpts)
+      buildZipFile(zipPath, fileMap)
 
       step = 'save'
       const stat = fileIo.statSync(zipPath)
@@ -338,6 +347,21 @@ struct Index {
     } finally {
       this.isExporting = false
     }
+  }
+
+  private writeString(path: string, content: string): void {
+    const f = fileIo.openSync(path, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+    fileIo.writeSync(f.fd, content)
+    fileIo.closeSync(f)
+  }
+
+  private readFileBuf(path: string): ArrayBuffer {
+    const stat = fileIo.statSync(path)
+    const f = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY)
+    const buf = new ArrayBuffer(stat.size)
+    fileIo.readSync(f.fd, buf)
+    fileIo.closeSync(f)
+    return buf
   }
 
   private async handleImportBackground(): Promise<void> {
