@@ -53,11 +53,18 @@ jobs:
           done
 
           cd "$SDK_HOME"
+          # Step 1: merge split parts into single 7z
           7z x commandline-tools-linux-x64-6.1.0.830.7z.001 -y
-          rm -f commandline-tools-linux-x64-6.1.0.830.7z.*
+          rm -f commandline-tools-linux-x64-6.1.0.830.7z.0*
+
+          # Step 2: extract the inner 7z
+          7z x commandline-tools-linux-x64-6.1.0.830.7z -y
+          rm -f commandline-tools-linux-x64-6.1.0.830.7z
 
           echo "=== SDK structure ==="
           find "$SDK_HOME" -maxdepth 4 -type d 2>/dev/null | head -40
+          echo "=== Key files ==="
+          find "$SDK_HOME" -maxdepth 5 \( -name "ohpm" -o -name "hvigorw" -o -name "hvigor" \) 2>/dev/null
 
       - name: Configure SDK Environment
         run: |
