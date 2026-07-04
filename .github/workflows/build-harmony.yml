@@ -123,7 +123,12 @@ jobs:
 
           echo "=== Running build with project hvigorw ==="
 
-          # Create symlinks so Node.js can resolve SDK bundled packages
+          # Create symlinks in SDK so packages can resolve each other
+          mkdir -p "$CLT_DIR/hvigor/node_modules/@ohos"
+          ln -sf "$CLT_DIR/hvigor/hvigor" "$CLT_DIR/hvigor/node_modules/@ohos/hvigor"
+          ln -sf "$CLT_DIR/hvigor/hvigor-ohos-plugin" "$CLT_DIR/hvigor/node_modules/@ohos/hvigor-ohos-plugin"
+
+          # Also in project node_modules
           mkdir -p node_modules/@ohos
           ln -sf "$CLT_DIR/hvigor/hvigor" node_modules/@ohos/hvigor
           ln -sf "$CLT_DIR/hvigor/hvigor-ohos-plugin" node_modules/@ohos/hvigor-ohos-plugin
