@@ -77,9 +77,9 @@ jobs:
           echo "HOS_SDK_HOME=$SDK_HOME" >> $GITHUB_ENV
           echo "OHOS_SDK_HOME=$SDK_DIR" >> $GITHUB_ENV
 
-          # Create .npmrc for hvigor (ohpm registry)
+          # Create .npmrc for hvigor: @ohos scope → ohpm, rest → npmjs
           cat > "$HOME/.npmrc" << 'EOF'
-          registry=https://ohpm.openharmony.cn/ohpm/
+          registry=https://registry.npmjs.org/
           @ohos:registry=https://ohpm.openharmony.cn/ohpm/
           strict-ssl=false
           EOF
@@ -87,8 +87,13 @@ jobs:
           echo "=== CLT_DIR contents ==="
           ls -la "$CLT_DIR"
           echo "=== bin contents ==="
-          ls -la "$CLT_DIR/bin" 2>/dev/null || echo "no bin dir"
-          ls -la "$CLT_DIR/hstack/bin" 2>/dev/null || echo "no hstack/bin dir"
+          ls "$CLT_DIR/bin" 2>/dev/null || echo "no bin dir"
+          echo "=== tool dir ==="
+          ls "$CLT_DIR/tool" 2>/dev/null || echo "no tool dir"
+          echo "=== find hvigor packages ==="
+          find "$SDK_HOME" -maxdepth 6 -path "*/node_modules/@ohos/hvigor*" -type d 2>/dev/null | head -10
+          echo "=== find all executables ==="
+          find "$CLT_DIR" -maxdepth 3 -type f -executable 2>/dev/null | head -20
 
       - name: Install Dependencies
         working-directory: harmonyos
