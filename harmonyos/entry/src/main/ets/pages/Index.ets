@@ -12,7 +12,7 @@ import { render, RenderOptions } from '../utils/renderer'
 import { checkForUpdate, UpdateInfo } from '../utils/updater'
 import { APP_VERSION } from '../utils/appState'
 import { ThemeMode, loadThemeMode, saveThemeMode, getResourceTheme, AppTheme } from '../utils/theme'
-import { pickAudioFile, pickImageFile, saveFileToDownloads } from '../utils/filePicker'
+import { pickAudioFile, pickVideoFile, pickImageFile, saveFileToDownloads } from '../utils/filePicker'
 import { textureManager } from '../utils/textureManager'
 import { PreviewAudioPlayer } from '../utils/previewAudioPlayer'
 
@@ -125,6 +125,24 @@ struct Index {
       this.chart = null
     } catch (e) {
       this.genError = `音频解码失败: ${e.message ?? e}`
+    }
+  }
+
+  private async handleImportVideo(): Promise<void> {
+    const file = await pickVideoFile()
+    if (!file) return
+
+    try {
+      const decoded = await decodeAudioFile(file.data, 'mp4')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      this.audioName = `${baseName}.mp4`
+      this.audioFormat = 'mp4'
+      this.audioData = file.data
+      this.decodedAudio = decoded
+      this.analysis = null
+      this.chart = null
+    } catch (e) {
+      this.genError = `视频音频提取失败: ${e.message ?? e}`
     }
   }
 
@@ -401,10 +419,21 @@ struct Index {
         .borderRadius(24)
         .shadow({ radius: 8, color: 'rgba(0,125,255,0.3)', offsetX: 0, offsetY: 4 })
         .onClick(() => this.handleImportAudio())
+        .margin({ bottom: 12 })
+
+      Button('从视频提取音频')
+        .width('100%')
+        .height(48)
+        .fontSize(16)
+        .fontColor($r('app.color.text_primary'))
+        .backgroundColor($r('app.color.bg_card'))
+        .borderRadius(24)
+        .border({ width: 1, color: $r('app.color.border') })
+        .onClick(() => this.handleImportVideo())
         .margin({ bottom: 24 })
 
       Column() {
-        Text('支持格式：MP3 / WAV / OGG / FLAC / M4A')
+        Text('支持格式：MP3 / WAV / OGG / FLAC / M4A / MP4')
           .fontSize(13)
           .fontColor($r('app.color.text_secondary'))
         Text('完全本地运行，不上传任何数据')

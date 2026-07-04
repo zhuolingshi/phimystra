@@ -10,24 +10,29 @@ export interface PickedFile {
 
 export async function pickAudioFile(): Promise<PickedFile | null> {
   try {
-    const option = new picker.AudioSelectOptions()
-    option.maxSelectNumber = 1
-    const audioPicker = new picker.AudioViewPicker()
-    const uris = await audioPicker.select(option)
+    const opt = new picker.DocumentSelectOptions()
+    opt.maxSelectNumber = 1
+    opt.fileSuffixFilters = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac']
+    const docPicker = new picker.DocumentViewPicker()
+    const uris = await docPicker.select(opt)
     if (!uris || uris.length === 0) return null
     return await readFileFromUri(uris[0])
   } catch {
-    try {
-      const opt = new picker.DocumentSelectOptions()
-      opt.maxSelectNumber = 1
-      opt.fileSuffixFilters = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac']
-      const docPicker = new picker.DocumentViewPicker()
-      const uris = await docPicker.select(opt)
-      if (!uris || uris.length === 0) return null
-      return await readFileFromUri(uris[0])
-    } catch {
-      return null
-    }
+    return null
+  }
+}
+
+export async function pickVideoFile(): Promise<PickedFile | null> {
+  try {
+    const opt = new picker.DocumentSelectOptions()
+    opt.maxSelectNumber = 1
+    opt.fileSuffixFilters = ['.mp4', '.mov', '.mkv', '.avi', '.webm', '.m4v']
+    const docPicker = new picker.DocumentViewPicker()
+    const uris = await docPicker.select(opt)
+    if (!uris || uris.length === 0) return null
+    return await readFileFromUri(uris[0])
+  } catch {
+    return null
   }
 }
 
