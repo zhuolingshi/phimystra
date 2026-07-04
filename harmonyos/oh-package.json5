@@ -1,6 +1,7 @@
 {
   "name": "phimystra",
   "version": "0.1.0",
+  "modelVersion": "5.0.0",
   "description": "AI 音游制谱器 - 鸿蒙版",
   "main": "",
   "author": "PhiMystra",
