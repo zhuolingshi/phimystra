@@ -53,18 +53,27 @@ jobs:
           done
 
           cd "$SDK_HOME"
-          # Step 1: merge split parts into single 7z
-          7z x commandline-tools-linux-x64-6.1.0.830.7z.001 -y
+
+          # Merge split parts and extract
+          echo "=== Merging split parts ==="
+          cat commandline-tools-linux-x64-6.1.0.830.7z.0* > commandline-tools-linux-x64-6.1.0.830-merged.7z
+          echo "Merged file size: $(du -h commandline-tools-linux-x64-6.1.0.830-merged.7z | cut -f1)"
+
+          echo "=== Extracting ==="
+          7z x commandline-tools-linux-x64-6.1.0.830-merged.7z -y
+
+          echo "=== After extraction ==="
+          rm -f commandline-tools-linux-x64-6.1.0.830-merged.7z
           rm -f commandline-tools-linux-x64-6.1.0.830.7z.0*
 
-          # Step 2: extract the inner 7z
-          7z x commandline-tools-linux-x64-6.1.0.830.7z -y
-          rm -f commandline-tools-linux-x64-6.1.0.830.7z
-
-          echo "=== SDK structure ==="
-          find "$SDK_HOME" -maxdepth 4 -type d 2>/dev/null | head -40
-          echo "=== Key files ==="
-          find "$SDK_HOME" -maxdepth 5 \( -name "ohpm" -o -name "hvigorw" -o -name "hvigor" \) 2>/dev/null
+          echo "=== Disk usage ==="
+          du -sh "$SDK_HOME"
+          echo "=== Top-level contents ==="
+          ls -la "$SDK_HOME"
+          echo "=== All directories (maxdepth 5) ==="
+          find "$SDK_HOME" -maxdepth 5 -type d 2>/dev/null | head -50
+          echo "=== Key executables ==="
+          find "$SDK_HOME" -maxdepth 6 \( -name "ohpm" -o -name "hvigorw" -o -name "hvigor" -o -name "sdkmgr" \) 2>/dev/null
 
       - name: Configure SDK Environment
         run: |
