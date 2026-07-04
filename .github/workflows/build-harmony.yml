@@ -108,17 +108,22 @@ jobs:
           PLUGIN_VER=$(node -p "require('$CLT_DIR/hvigor/hvigor-ohos-plugin/package.json').version")
           echo "Bundled hvigor: $HVIGOR_VER, plugin: $PLUGIN_VER"
 
+          # Dump version constants and hvigor-config schema for debugging
+          echo "=== Version Constants ==="
+          node -e "
+            const p = require('$CLT_DIR/hvigor/hvigor-ohos-plugin/src/const/version-const.js');
+            console.log('VersionConst:', JSON.stringify(p.VersionConst || p, null, 2));
+          " 2>/dev/null || echo "Could not read version-const.js"
+          echo "=== hvigor-config schema ==="
+          find "$CLT_DIR/hvigor" -name "*.json" -path "*schema*" 2>/dev/null | head -10
+          find "$CLT_DIR/hvigor" -name "hvigor*config*schema*" 2>/dev/null | head -10
+
           cat > hvigor/hvigor-config.json5 << EOF
           {
             "modelVersion": "5.0.0",
-            "hvigorVersion": "$HVIGOR_VER",
             "dependencies": {
               "@ohos/hvigor-ohos-plugin": "$PLUGIN_VER"
-            },
-            "execution": {},
-            "logging": { "level": "info" },
-            "debugging": { "quiet": false },
-            "nodeOptions": {}
+            }
           }
           EOF
 
@@ -136,13 +141,18 @@ jobs:
 
           chmod +x hvigorw
           ./hvigorw assembleHap --mode module -p product=default --no-daemon --stacktrace 2>&1 || {
-            echo "=== Build failed. Dumping validate-util source ==="
+            echo "=== Build failed. Dumping diagnostics ==="
             CLT_DIR="$HOME/harmonyos-sdk/command-line-tools"
-            grep -n "modelVersionCheck\|model_version\|MODEL_VERSION\|projectStatusCheck\|upgrade" \
+            echo "=== version-const ==="
+            node -e "
+              const p = require('$CLT_DIR/hvigor/hvigor-ohos-plugin/src/const/version-const.js');
+              console.log(JSON.stringify(p.VersionConst || p, null, 2));
+            " 2>/dev/null || cat "$CLT_DIR/hvigor/hvigor-ohos-plugin/src/const/version-const.js" 2>/dev/null | head -20
+            echo "=== hvigor-config schema files ==="
+            find "$CLT_DIR/hvigor" -name "*hvigor*config*" -o -name "*schema*" 2>/dev/null | head -20
+            echo "=== validate-util modelVersionCheck ==="
+            grep -n "modelVersionCheck\|MODEL_VERSION\|projectStatusCheck" \
               "$CLT_DIR/hvigor/hvigor-ohos-plugin/src/utils/validate/validate-util.js" 2>/dev/null | head -20
-            echo "=== Dumping project-model source ==="
-            grep -n "projectStatusCheck\|modelVersion\|MODEL\|upgrade\|00303024" \
-              "$CLT_DIR/hvigor/hvigor-ohos-plugin/src/model/project/core-project-model-impl.js" 2>/dev/null | head -20
             exit 1
           }
 
