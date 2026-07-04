@@ -124,30 +124,27 @@ jobs:
           EOF
 
           # Pre-install bundled packages into hvigor cache
-          # Pack as tarballs
-          cd /tmp
-          npm pack "$CLT_DIR/hvigor/hvigor" 2>/dev/null
-          npm pack "$CLT_DIR/hvigor/hvigor-ohos-plugin" 2>/dev/null
-
-          # Find the cache workspace dir that hvigorw will use
-          # Pre-create and install
+          # Copy directories directly (avoid npm pack prepack script issues)
           CACHE_BASE="$HOME/.hvigor/project_caches"
-          mkdir -p "$CACHE_BASE/$HVIGOR_VER/workspace"
-          cd "$CACHE_BASE/$HVIGOR_VER/workspace"
+          mkdir -p "$CACHE_BASE/$HVIGOR_VER/workspace/node_modules/@ohos"
+          cp -r "$CLT_DIR/hvigor/hvigor" "$CACHE_BASE/$HVIGOR_VER/workspace/node_modules/@ohos/hvigor"
+          cp -r "$CLT_DIR/hvigor/hvigor-ohos-plugin" "$CACHE_BASE/$HVIGOR_VER/workspace/node_modules/@ohos/hvigor-ohos-plugin"
 
-          cat > package.json << EOF
+          # Create package.json in cache workspace
+          cat > "$CACHE_BASE/$HVIGOR_VER/workspace/package.json" << EOF
           {
             "name": "hvigor-project-cache",
             "version": "1.0.0",
             "dependencies": {
-              "@ohos/hvigor": "file:/tmp/ohos-hvigor-$HVIGOR_VER.tgz",
-              "@ohos/hvigor-ohos-plugin": "file:/tmp/ohos-hvigor-ohos-plugin-$PLUGIN_VER.tgz"
+              "@ohos/hvigor": "$HVIGOR_VER",
+              "@ohos/hvigor-ohos-plugin": "$PLUGIN_VER"
             }
           }
           EOF
 
-          echo "Installing bundled hvigor packages..."
-          npm install --no-audit --prefer-offline 2>&1 | tail -5
+          echo "Cached packages installed."
+          echo "=== hvigor entry check ==="
+          ls -la "$CACHE_BASE/$HVIGOR_VER/workspace/node_modules/@ohos/hvigor/bin/" 2>/dev/null || echo "no bin dir in hvigor"
 
           echo "=== Running build ==="
           chmod +x "$HVIGORW"
