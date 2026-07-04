@@ -1,8 +1,9 @@
 // RPE 事件解析器：借鉴 phi-chart-render 预处理策略 + PhiZone 实时缓动计算
 // 负责：beat→sec 转换、事件值插值、floorPosition 预积分
 
-import type { RPEChart, Note, BeatTime, BPMEntry } from '../../types/rpe'
+import type { RPEChart, Note, BeatTime, BPMEntry, AlphaControlEntry, PosControlEntry, SizeControlEntry, SkewControlEntry, YControlEntry } from '../../types/rpe'
 import { getEasingFn } from './easings'
+import { NOTE_HEIGHT } from '../../types/rpe'
 
 export interface ProcessedBPM {
   bpm: number
@@ -45,6 +46,8 @@ export interface ProcessedLine {
   rotateEvents: TimedEvent[]
   alphaEvents: TimedEvent[]
   speedEvents: TimedEvent[]
+  sizeEvents: TimedEvent[]
+  skewEvents: TimedEvent[]
   floorPosTable: FloorPosEntry[]
   notes: ProcessedNote[]
   father: number
@@ -177,26 +180,69 @@ export function getEventValue(events: TimedEvent[], time: number, defaultValue: 
   return defaultValue
 }
 
+function convertControlEntries<T>(
+  entries: T[], getVal: (e: T) => number, getEasing: (e: T) => number, getX: (e: T) => number,
+  scale: number = 1
+): TimedEvent[] {
+  if (!entries || entries.length < 2) return []
+  const sorted = [...entries].sort((a, b) => getX(a) - getX(b))
+  const result: TimedEvent[] = []
+  for (let i = 0; i < sorted.length - 1; i++) {
+    result.push({
+      startTime: getX(sorted[i]),
+      endTime: getX(sorted[i + 1]),
+      start: getVal(sorted[i]) * scale,
+      end: getVal(sorted[i + 1]) * scale,
+      easing: getEasing(sorted[i + 1]),
+    })
+  }
+  return result
+}
+
+function mergeEvents(...arrs: TimedEvent[][]): TimedEvent[] {
+  return arrs.flat().sort((a, b) => a.startTime - b.startTime)
+}
+
 export function parseChart(chart: RPEChart): ProcessedChart {
   const bpmList = processBPMList(chart.BPMList)
   const lines: ProcessedLine[] = chart.judgeLineList.map((line, idx) => {
-    const layer = line.eventLayers[0] ?? line.eventLayers[0]
-    const moveXEvents = layer ? convertEvents(layer.moveXEvents, bpmList) : []
-    const moveYEvents = layer ? convertEvents(layer.moveYEvents, bpmList) : []
-    const rotateEvents = layer ? convertEvents(layer.rotateEvents, bpmList) : []
-    const alphaEvents = layer ? convertEvents(layer.alphaEvents, bpmList) : []
-    const speedEventsRaw = layer ? convertEvents(
-      layer.speedEvents.map(s => ({
-        startTime: s.startTime, endTime: s.endTime,
-        start: s.start, end: s.end, easingType: 1,
-      })), bpmList
-    ) : []
+    let moveXEvents: TimedEvent[] = []
+    let moveYEvents: TimedEvent[] = []
+    let rotateEvents: TimedEvent[] = []
+    let alphaEvents: TimedEvent[] = []
+    let speedEventsRaw: TimedEvent[] = []
+
+    for (const layer of line.eventLayers) {
+      if (!layer) continue
+      moveXEvents = mergeEvents(moveXEvents, convertEvents(layer.moveXEvents, bpmList))
+      moveYEvents = mergeEvents(moveYEvents, convertEvents(layer.moveYEvents, bpmList))
+      rotateEvents = mergeEvents(rotateEvents, convertEvents(layer.rotateEvents, bpmList))
+      alphaEvents = mergeEvents(alphaEvents, convertEvents(layer.alphaEvents, bpmList))
+      const layerSpeed = convertEvents(
+        layer.speedEvents.map(s => ({
+          startTime: s.startTime, endTime: s.endTime,
+          start: s.start, end: s.end, easingType: 1,
+        })), bpmList
+      )
+      speedEventsRaw = mergeEvents(speedEventsRaw, layerSpeed)
+    }
+
+    moveYEvents = mergeEvents(moveYEvents,
+      convertControlEntries(line.posControl, e => e.pos, e => e.easing, e => e.x, NOTE_HEIGHT * 4.5),
+      convertControlEntries(line.yControl, e => e.y, e => e.easing, e => e.x, NOTE_HEIGHT),
+    )
+    alphaEvents = mergeEvents(alphaEvents,
+      convertControlEntries(line.alphaControl, e => e.alpha, e => e.easing, e => e.x),
+    )
+    const sizeEvents = convertControlEntries(line.sizeControl, e => e.size, e => e.easing, e => e.x)
+    const skewEvents = convertControlEntries(line.skewControl, e => e.skew, e => e.easing, e => e.x)
+
     const floorPosTable = computeFloorPosTable(speedEventsRaw)
     const notes = processNotes(line.notes, bpmList, speedEventsRaw)
     return {
       index: idx,
       moveXEvents, moveYEvents, rotateEvents, alphaEvents,
-      speedEvents: speedEventsRaw,
+      speedEvents: speedEventsRaw, sizeEvents, skewEvents,
       floorPosTable,
       notes,
       father: line.father,
@@ -220,5 +266,7 @@ export function getLineState(line: ProcessedLine, time: number) {
   const alpha = rawAlpha > 1 ? rawAlpha / 255 : rawAlpha
   const floorPos = queryFloorPosition(line.floorPosTable, time)
   const speed = queryFloorSpeed(line.floorPosTable, time)
-  return { x, y, rotation, alpha, floorPos, speed }
+  const size = getEventValue(line.sizeEvents, time, 1)
+  const skew = getEventValue(line.skewEvents, time, 0)
+  return { x, y, rotation, alpha, floorPos, speed, size, skew }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { save, message, open } from '@tauri-apps/plugin-dialog'
 import { writeFile, readFile } from '@tauri-apps/plugin-fs'
 import { AudioImporter } from './components/AudioImporter'
@@ -12,11 +12,22 @@ import { generateChart } from './modules/chartEngine'
 import { exportPez, encodeAudioBufferToWav } from './modules/pezExporter'
 import { checkForUpdate, getAppVersion, type UpdateInfo } from './modules/updater'
 import { openUrl } from '@tauri-apps/plugin-opener'
+import { useScreenSize } from './hooks/useScreenSize'
+import { RecentGenerations, useRecentGenerations } from './components/RecentGenerations'
+import { saveGeneration } from './modules/history/db'
 
 export default function App() {
+  const screen = useScreenSize()
+  const { size, orientation, isTouch } = screen
+  const isMobileLayout = size === 'phone'
+  const isTabletLayout = size === 'tablet'
+  const widePadding = isMobileLayout ? 12 : 24
+  const maxWidth = isMobileLayout ? 900 : isTabletLayout ? 1100 : 900
+  const titleFontSize = isMobileLayout ? 20 : isTabletLayout ? 26 : undefined
+
   const {
     audio, analysis, isAnalyzing, chart,
-    setAnalysis, setAnalyzing, setChart, reset,
+    setAudio, setAnalysis, setAnalyzing, setChart, reset,
     difficulty, songName, setSongName,
     playstyle, setPlaystyle,
     composer, setComposer, charter, setCharter,
@@ -32,12 +43,13 @@ export default function App() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
   const [startupUpdate, setStartupUpdate] = useState<UpdateInfo | null>(null)
+  const { items: recentItems, refresh: refreshRecent } = useRecentGenerations()
 
-  // 启动时自动检查更新
   useEffect(() => {
     checkForUpdate().then(info => {
       if (info.hasUpdate) setStartupUpdate(info)
     }).catch(() => {})
+    refreshRecent()
   }, [])
 
   const handleCheckUpdate = async () => {
@@ -81,6 +93,22 @@ export default function App() {
         setGenError(`警告: ${result.validationErrors.join(', ')}`)
       }
       setChart(result.chart)
+      if (audio?.originalData) {
+        const audioName = audio.name
+        const audioData = audio.originalData
+        const audioFormat = audio.originalFormat ?? 'wav'
+        saveGeneration({
+          songName: songName || audioName.replace(/\.[^.]+$/, '') || '未命名',
+          composer: composer || '未知',
+          difficulty,
+          chart: result.chart,
+          analysis,
+          audioData,
+          audioFormat,
+          audioName,
+          backgroundData,
+        }).then(refreshRecent).catch(() => {})
+      }
     } catch (err) {
       setGenError(`生成失败: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
@@ -88,7 +116,6 @@ export default function App() {
     }
   }
 
-  // 同步编辑信息到 chart 的 META
   const syncMetaToChart = () => {
     if (!chart) return
     setChart({
@@ -107,7 +134,6 @@ export default function App() {
     setExporting(true)
     setExportMsg(null)
     try {
-      // 先同步编辑的信息到 chart
       syncMetaToChart()
       const chartToExport = {
         ...chart,
@@ -136,21 +162,36 @@ export default function App() {
         filename: `${chartToExport.META.name || 'chart'}.zip`,
       })
 
-      // 弹出保存对话框选择路径
       const defaultName = `${chartToExport.META.name || 'chart'}.zip`
-      const savePath = await save({
-        defaultPath: defaultName,
-        filters: [{ name: '谱面包', extensions: ['zip'] }],
-      })
 
-      if (savePath) {
-        // 用 Tauri fs 写入文件
-        await writeFile(savePath, result.data)
-        setExportMsg({ ok: true, text: `导出成功！已保存到：${savePath}（${(result.size / 1024).toFixed(0)} KB）` })
+      if (isTouch && typeof navigator.share === 'function') {
+        const blob = new Blob([result.data as BlobPart], { type: 'application/zip' })
+        const file = new File([blob], defaultName, { type: 'application/zip' })
+        try {
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: '导入谱面到 Phira' })
+            setExportMsg({ ok: true, text: `已分享 ${defaultName}（${(result.size / 1024).toFixed(0)} KB）` })
+          } else {
+            downloadBlob(result.data, defaultName)
+            setExportMsg({ ok: true, text: `已下载：${defaultName}（${(result.size / 1024).toFixed(0)} KB）` })
+          }
+        } catch (shareErr) {
+          downloadBlob(result.data, defaultName)
+          setExportMsg({ ok: true, text: `已下载：${defaultName}（${(result.size / 1024).toFixed(0)} KB）` })
+        }
       } else {
-        // 用户取消，用浏览器下载兜底
-        downloadBlob(result.data, result.filename)
-        setExportMsg({ ok: true, text: `已下载：${result.filename}（${(result.size / 1024).toFixed(0)} KB）` })
+        const savePath = await save({
+          defaultPath: defaultName,
+          filters: [{ name: '谱面包', extensions: ['zip'] }],
+        })
+
+        if (savePath) {
+          await writeFile(savePath, result.data)
+          setExportMsg({ ok: true, text: `导出成功！已保存到：${savePath}（${(result.size / 1024).toFixed(0)} KB）` })
+        } else {
+          downloadBlob(result.data, result.filename)
+          setExportMsg({ ok: true, text: `已下载：${result.filename}（${(result.size / 1024).toFixed(0)} KB）` })
+        }
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
@@ -162,6 +203,19 @@ export default function App() {
   }
 
   const handleImportBackground = async () => {
+    if (isTouch) {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/png,image/jpeg,image/webp,image/bmp'
+      input.onchange = () => {
+        const f = input.files?.[0]
+        if (f) {
+          f.arrayBuffer().then(buf => setBackgroundData(new Uint8Array(buf)))
+        }
+      }
+      input.click()
+      return
+    }
     try {
       const selected = await open({
         filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp'] }],
@@ -176,17 +230,72 @@ export default function App() {
     }
   }
 
+  const handleBack = () => {
+    if (chart) { setChart(null); return }
+    if (analysis) { setAnalysis(null); return }
+    if (audio) { setAudio(null); return }
+  }
+
+  // 安卓返回键：Kotlin 直接调 window.__appGoBack()
+  useEffect(() => {
+    ;(window as any).__appGoBack = () => {
+      const s = useProjectStore.getState()
+      if (s.chart) { s.setChart(null); return true }
+      if (s.analysis) { s.setAnalysis(null); return true }
+      if (s.audio) { s.setAudio(null); return true }
+      return false
+    }
+    return () => { delete (window as any).__appGoBack }
+  }, [])
+
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0]
+    touchStart.current = { x: t.clientX, y: t.clientY }
+  }
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current
+    touchStart.current = null
+    if (!start) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - start.x
+    const dy = t.clientY - start.y
+    if (start.x < 40 && dx > 60 && Math.abs(dy) < 60) {
+      handleBack()
+    }
+  }
+
   const bpm = analysis?.bpm ?? chart?.BPMList?.[0]?.bpm ?? '—'
   const lineCount = chart?.judgeLineList?.length ?? '—'
   const noteCount = chart?.judgeLineList?.reduce((s, l) => s + (l.numOfNotes || 0), 0) ?? '—'
 
+  const isLandscapeTablet = isTabletLayout && orientation === 'landscape'
+
   return (
     <div style={{
       backgroundColor: '#0f0f1e', minHeight: '100vh', color: '#eee',
-      padding: '24px', fontFamily: 'system-ui, sans-serif',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1>🎵 音律魔女</h1>
+      padding: `${widePadding}px`,
+      paddingTop: isTouch ? `max(${widePadding}px, env(safe-area-inset-top))` : `${widePadding}px`,
+      fontFamily: 'system-ui, sans-serif',
+    }}
+    onTouchStart={onTouchStart}
+    onTouchEnd={onTouchEnd}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobileLayout ? '8px' : '12px' }}>
+          {audio && (
+            <button onClick={handleBack}
+              style={{
+                background: '#252548', border: '1px solid #444', cursor: 'pointer',
+                color: '#ccc', borderRadius: '8px',
+                fontSize: '18px', padding: '6px 12px',
+                minHeight: '36px', whiteSpace: 'nowrap',
+              }}>
+              ← 返回
+            </button>
+          )}
+          <h1 style={{ fontSize: titleFontSize }}>🎵 音律魔女</h1>
+        </div>
         <button onClick={() => setShowSettings(!showSettings)}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', color: '#ccc' }}>
           ⚙️
@@ -206,10 +315,19 @@ export default function App() {
         <UpdatePopup info={startupUpdate} onClose={() => setStartupUpdate(null)} />
       )}
 
-      <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex',
+      <div style={{ maxWidth: `${maxWidth}px`, margin: '0 auto', display: 'flex',
         flexDirection: 'column', gap: '20px' }}>
 
         <AudioImporter />
+
+        {!audio && (
+          <RecentGenerations
+            items={recentItems}
+            onRestored={refreshRecent}
+            onDeleted={refreshRecent}
+            isPhone={isMobileLayout}
+          />
+        )}
 
         {audio && !analysis && (
           <button onClick={handleAnalyze} disabled={isAnalyzing}
@@ -220,7 +338,6 @@ export default function App() {
         {isAnalyzing && <p style={{ textAlign: 'center', opacity: 0.7 }}>正在检测节奏点和频段信息...</p>}
         {analysis && <OnsetViewer />}
 
-        {/* Step 3: 生成前 — 信息编辑 + 难度 */}
         {analysis && !chart && (
           <>
             <ChartInfoEditor
@@ -229,8 +346,9 @@ export default function App() {
               charter={charter} setCharter={setCharter}
               illustrator={illustrator} setIllustrator={setIllustrator}
               bpm={bpm} lineCount={lineCount} noteCount={noteCount}
+              landscape={isLandscapeTablet}
             />
-            <PlaystyleSelector value={playstyle} onChange={setPlaystyle} />
+            <PlaystyleSelector value={playstyle} onChange={setPlaystyle} tablet={isTabletLayout} />
             <DifficultySelector />
             <BackgroundImporter onImport={handleImportBackground} hasBackground={!!backgroundData} onClear={() => setBackgroundData(null)} />
             <button onClick={handleGenerate} disabled={generating}
@@ -242,7 +360,6 @@ export default function App() {
 
         {genError && <p style={{ color: '#ff9800' }}>{genError}</p>}
 
-        {/* Step 4: 生成后 — 可继续编辑信息 + 预览 + 导出 */}
         {chart && audio && (
           <>
             <ChartInfoEditor
@@ -251,10 +368,20 @@ export default function App() {
               charter={charter} setCharter={setCharter}
               illustrator={illustrator} setIllustrator={setIllustrator}
               bpm={bpm} lineCount={lineCount} noteCount={noteCount}
+              landscape={isLandscapeTablet}
             />
             <BackgroundImporter onImport={handleImportBackground} hasBackground={!!backgroundData} onClear={() => setBackgroundData(null)} />
-            <ChartPlayer />
-            <ChartPreview />
+            <div style={{
+              display: isLandscapeTablet ? 'flex' : 'block',
+              gap: isLandscapeTablet ? '20px' : undefined,
+            }}>
+              <div style={{ flex: isLandscapeTablet ? '1' : undefined }}>
+                <ChartPlayer />
+              </div>
+              <div style={{ flex: isLandscapeTablet ? '0 0 320px' : undefined, marginTop: isLandscapeTablet ? 0 : '20px' }}>
+                <ChartPreview />
+              </div>
+            </div>
 
             {exportMsg && (
               <div style={{
@@ -268,10 +395,10 @@ export default function App() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <button onClick={handleExport} disabled={exporting}
                 style={buttonStyle(exporting, '#ff9800')}>
-                {exporting ? '正在导出...' : '📥 导出 .pez 谱面包'}
+                {exporting ? '正在导出...' : isTouch ? '📤 分享到 Phira' : '📥 导出 .pez 谱面包'}
               </button>
               <button onClick={() => setChart(null)}
                 style={buttonStyle(false, '#333', '#ccc', '#555')}>
@@ -289,7 +416,6 @@ export default function App() {
   )
 }
 
-// 背景导入器
 function BackgroundImporter(props: { onImport: () => void; hasBackground: boolean; onClear: () => void }) {
   return (
     <div style={{ padding: '12px 16px', backgroundColor: '#1a1a2e', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -312,30 +438,29 @@ function BackgroundImporter(props: { onImport: () => void; hasBackground: boolea
   )
 }
 
-// 玩法选择器
-function PlaystyleSelector(props: { value: string; onChange: (v: any) => void }) {
+function PlaystyleSelector(props: { value: string; onChange: (v: any) => void; tablet: boolean }) {
   const options = [
     { value: 'two-finger', label: '👆 两指', desc: '双手双指，适合手机' },
     { value: 'multi-finger', label: '✋ 多指', desc: '多指并发，适合平板' },
   ]
   return (
-    <div style={{ padding: '16px', backgroundColor: '#1a1a2e', borderRadius: '12px' }}>
-      <div style={{ marginBottom: '12px', color: '#ccc' }}>玩法选择</div>
+    <div style={{ padding: props.tablet ? '20px' : '16px', backgroundColor: '#1a1a2e', borderRadius: '12px' }}>
+      <div style={{ marginBottom: '12px', color: '#ccc', fontSize: props.tablet ? '17px' : undefined }}>玩法选择</div>
       <div style={{ display: 'flex', gap: '12px' }}>
         {options.map(opt => (
           <button
             key={opt.value}
             onClick={() => props.onChange(opt.value)}
             style={{
-              flex: 1, padding: '14px', borderRadius: '8px', cursor: 'pointer',
+              flex: 1, padding: props.tablet ? '18px' : '14px', borderRadius: '8px', cursor: 'pointer',
               border: props.value === opt.value ? '2px solid #5c6bc0' : '2px solid #333',
               backgroundColor: props.value === opt.value ? '#252548' : '#12121f',
               color: props.value === opt.value ? '#fff' : '#888',
-              fontSize: '16px', transition: 'all 0.2s',
+              fontSize: props.tablet ? '18px' : '16px', transition: 'all 0.2s',
             }}
           >
             <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{opt.label}</div>
-            <div style={{ fontSize: '12px', opacity: 0.7 }}>{opt.desc}</div>
+            <div style={{ fontSize: props.tablet ? '14px' : '12px', opacity: 0.7 }}>{opt.desc}</div>
           </button>
         ))}
       </div>
@@ -343,17 +468,16 @@ function PlaystyleSelector(props: { value: string; onChange: (v: any) => void })
   )
 }
 
-// 可复用的谱面信息编辑组件
 function ChartInfoEditor(props: {
   songName: string; setSongName: (v: string) => void
   composer: string; setComposer: (v: string) => void
   charter: string; setCharter: (v: string) => void
   illustrator: string; setIllustrator: (v: string) => void
   bpm: number | string; lineCount: number | string; noteCount: number | string
+  landscape: boolean
 }) {
   return (
-    <div style={{ display: 'flex', gap: '16px' }}>
-      {/* 左栏：可编辑 */}
+    <div style={{ display: 'flex', gap: '16px', flexDirection: props.landscape ? 'row' : 'column' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <input type="text" placeholder="曲名" value={props.songName}
           onChange={(e) => props.setSongName(e.target.value)} style={inputStyle} />
@@ -364,9 +488,8 @@ function ChartInfoEditor(props: {
         <input type="text" placeholder="画师" value={props.illustrator}
           onChange={(e) => props.setIllustrator(e.target.value)} style={inputStyle} />
       </div>
-      {/* 右栏：只读 */}
       <div style={{
-        width: '180px', backgroundColor: '#1a1a2e', borderRadius: '8px',
+        width: props.landscape ? '200px' : '180px', backgroundColor: '#1a1a2e', borderRadius: '8px',
         padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px',
       }}>
         <div style={infoItemStyle}>
@@ -404,13 +527,13 @@ function buttonStyle(
 ): React.CSSProperties {
   return {
     padding: '12px 24px', fontSize: '16px', cursor: disabled ? 'wait' : 'pointer',
+    minHeight: '44px',
     backgroundColor: disabled ? '#333' : bg, color: disabled ? '#666' : color,
     border: `1px solid ${border}`, borderRadius: '8px',
     opacity: disabled ? 0.7 : 1, flex: 1,
   }
 }
 
-// 启动更新弹窗
 function UpdatePopup(props: { info: UpdateInfo; onClose: () => void }) {
   const { info } = props
   return (
@@ -459,14 +582,13 @@ function UpdatePopup(props: { info: UpdateInfo; onClose: () => void }) {
             backgroundColor: 'transparent', color: '#888', fontSize: '14px',
             border: '1px solid #444', cursor: 'pointer',
           }}>
-          稍后再说
+          稀后再说
         </button>
       </div>
     </div>
   )
 }
 
-// 设置面板
 function SettingsPanel(props: {
   version: string
   updateInfo: UpdateInfo | null
@@ -532,7 +654,6 @@ function SettingsPanel(props: {
   )
 }
 
-// 浏览器下载兜底
 function downloadBlob(data: Uint8Array, filename: string) {
   const blob = new Blob([data as BlobPart], { type: 'application/zip' })
   const url = URL.createObjectURL(blob)

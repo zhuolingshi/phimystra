@@ -1,5 +1,6 @@
 node_modules/
 dist/
 源代码/src-tauri/target/
+源代码/src-tauri/gen/
 *.log
 .DS_Store

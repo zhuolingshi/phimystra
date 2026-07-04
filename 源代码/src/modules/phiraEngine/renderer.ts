@@ -129,7 +129,7 @@ export function render(
     const sin = Math.sin(rotation)
 
     // 渲染判定线（用贴图）
-    renderJudgeLine(ctx, worldX, worldY, rotation, alpha, width, scale)
+    renderJudgeLine(ctx, worldX, worldY, rotation, alpha, state.size, state.skew, width, scale)
 
     // 音符渲染
     const maxVisibleDist = height / scale
@@ -196,11 +196,16 @@ export function render(
 function renderJudgeLine(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, rotation: number,
-  alpha: number, canvasWidth: number, scale: number
+  alpha: number, size: number, skew: number,
+  canvasWidth: number, scale: number
 ): void {
   ctx.save()
   ctx.translate(x, y)
   ctx.rotate(rotation)
+  ctx.scale(Math.max(0.01, size), 1)
+  if (Math.abs(skew) > 0.001) {
+    ctx.transform(1, 0, Math.tan(skew * Math.PI / 180), 1, 0, 0)
+  }
   ctx.globalAlpha = alpha
 
   if (textures.judgeLine && textures.judgeLine.complete && textures.judgeLine.naturalWidth > 0) {

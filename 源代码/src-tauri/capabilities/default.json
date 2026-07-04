@@ -15,7 +15,8 @@
       "identifier": "http:default",
       "allow": [
         { "url": "https://cdn.jsdelivr.net/*" },
-        { "url": "https://gh-proxy.com/*" }
+        { "url": "https://gh-proxy.com/*" },
+        { "url": "https://api.github.com/*" }
       ]
     },
     "opener:default"

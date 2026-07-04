@@ -1,0 +1,12 @@
+{
+  "name": "phimystra",
+  "version": "0.1.0",
+  "description": "AI 音游制谱器 - 鸿蒙版",
+  "main": "",
+  "author": "PhiMystra",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.6"
+  }
+}

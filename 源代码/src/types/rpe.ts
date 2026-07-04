@@ -54,11 +54,17 @@ export interface EventLayer {
   speedEvents: SpeedEvent[]
 }
 
+export interface AlphaControlEntry { easing: number; alpha: number; x: number }
+export interface PosControlEntry { easing: number; pos: number; x: number }
+export interface SizeControlEntry { easing: number; size: number; x: number }
+export interface SkewControlEntry { easing: number; skew: number; x: number }
+export interface YControlEntry { easing: number; x: number; y: number }
+
 export interface JudgeLine {
   Group: number
   Name: string
   Texture: string
-  alphaControl: unknown[]
+  alphaControl: AlphaControlEntry[]
   bpmfactor: number
   eventLayers: EventLayer[]
   extended: { colorEvents: AnimationEvent[]; inclineEvents: AnimationEvent[] }
@@ -66,10 +72,10 @@ export interface JudgeLine {
   isCover: 0 | 1
   notes: Note[]
   numOfNotes: number
-  posControl: unknown[]
-  sizeControl: unknown[]
-  skewControl: unknown[]
-  yControl: unknown[]
+  posControl: PosControlEntry[]
+  sizeControl: SizeControlEntry[]
+  skewControl: SkewControlEntry[]
+  yControl: YControlEntry[]
   zOrder: number
 }
 

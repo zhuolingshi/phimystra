@@ -42,10 +42,10 @@ export const EASINGS: EasingFn[] = [
   (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2,
   (x) => 1 - Math.sqrt(1 - Math.pow(x, 2)),
   (x) => Math.sqrt(1 - Math.pow(x - 1, 2)),
-  (x) => 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2),
+  (x) => c3 * x * x * x - c1 * x * x,
   (x) => 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2),
   (x) => x === 0 ? 0 : -Math.pow(2, 10 * x - 10) * Math.sin((x * 10 - 10.75) * c4),
-  (x) => x === 0 ? 0 : -Math.pow(2, 10 * x - 10) * Math.sin((x * 10 - 10.75) * c4),
+  (x) => x === 0 ? 0 : x === 1 ? 1 : Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * c4) + 1,
   bounceOut,
 ]
 

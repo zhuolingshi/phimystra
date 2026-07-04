@@ -1,0 +1,112 @@
+name: Build HarmonyOS
+
+on:
+  push:
+    tags:
+      - 'harmony-v*'
+  workflow_dispatch:
+    inputs:
+      sdk_path:
+        description: 'HarmonyOS SDK command-line tools path (optional)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install HarmonyOS SDK
+        id: sdk-install
+        run: |
+          SDK_HOME="$HOME/harmonyos-sdk"
+          mkdir -p "$SDK_HOME"
+          
+          # SDK command-line tools download URL (Linux x64)
+          # Update this URL when a new version is released
+          SDK_URL="${{ github.event.inputs.sdk_path || 'https://contentcenter-vali-drcn.dbankcdn.cn/pub_1/DevEcoSpace_Emulation_hindex_900_9/81/v3/qqXNZmCfQfGFKBMc6x9msw/commandline-tools-linux-x64-5.0.7.200.zip' }}"
+          
+          echo "Downloading HarmonyOS SDK from: $SDK_URL"
+          wget -q --timeout=60 "$SDK_URL" -O "$SDK_HOME/sdk-tools.zip" 2>/dev/null
+          
+          DOWNLOAD_OK=false
+          if [ -f "$SDK_HOME/sdk-tools.zip" ] && [ -s "$SDK_HOME/sdk-tools.zip" ]; then
+            unzip -q -o "$SDK_HOME/sdk-tools.zip" -d "$SDK_HOME" && DOWNLOAD_OK=true || true
+          fi
+          
+          if [ "$DOWNLOAD_OK" = false ]; then
+            echo "::warning::SDK download failed. Trying alternative approach..."
+            echo "The HarmonyOS SDK must be downloaded manually from:"
+            echo "https://developer.huawei.com/consumer/cn/download/"
+            echo ""
+            echo "For CI, consider using a self-hosted runner with DevEco Studio installed."
+            exit 1
+          fi
+          
+          # Find the command-line tools directory
+          CMD_TOOLS_DIR=$(find "$SDK_HOME" -maxdepth 2 -name "bin" -path "*/command-line-tools/*" | head -1 | xargs dirname 2>/dev/null || true)
+          if [ -z "$CMD_TOOLS_DIR" ]; then
+            CMD_TOOLS_DIR=$(find "$SDK_HOME" -maxdepth 2 -name "ohpm" -type f | head -1 | xargs dirname 2>/dev/null || true)
+          fi
+          
+          echo "SDK installed at: $SDK_HOME"
+          echo "Command-line tools at: ${CMD_TOOLS_DIR:-$SDK_HOME}"
+          
+          echo "DEVECO_SDK_HOME=$SDK_HOME" >> $GITHUB_ENV
+          echo "HOS_SDK_HOME=$SDK_HOME" >> $GITHUB_ENV
+          if [ -n "$CMD_TOOLS_DIR" ]; then
+            echo "$CMD_TOOLS_DIR/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Configure SDK
+        run: |
+          SDK_HOME="$HOME/harmonyos-sdk"
+          
+          # Create local.properties pointing to the SDK
+          cat > harmonyos/local.properties << EOF
+          sdk.dir=$SDK_HOME
+          sdk.version=5.0.0(12)
+          EOF
+
+      - name: Install Dependencies
+        working-directory: harmonyos
+        run: |
+          ohpm install 2>/dev/null || npm install
+
+      - name: Build HAP
+        working-directory: harmonyos
+        run: |
+          chmod +x hvigorw
+          ./hvigorw assembleHap --mode module -p product=default --no-daemon --analyze=normal
+
+      - name: Upload HAP Artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: phimystra-harmonyos-hap
+          path: harmonyos/entry/build/default/outputs/default/*.hap
+          retention-days: 30
+
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/harmony-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: harmonyos/entry/build/default/outputs/default/*.hap
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true

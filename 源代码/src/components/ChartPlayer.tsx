@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { useProjectStore } from '../stores/projectStore'
 import { createPreviewEngine, type PreviewEngine } from '../modules/phiraEngine'
+import { useScreenSize } from '../hooks/useScreenSize'
 
 export function ChartPlayer() {
   const { chart, audio } = useProjectStore()
@@ -10,6 +11,10 @@ export function ChartPlayer() {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const { size } = useScreenSize()
+
+  const canvasW = size === 'phone' ? 800 : 1000
+  const canvasH = size === 'phone' ? 533 : 667
 
   useEffect(() => {
     if (!chart || !audio || !canvasRef.current) return
@@ -75,8 +80,8 @@ export function ChartPlayer() {
       }}>
         <canvas
           ref={canvasRef}
-          width={800}
-          height={533}
+          width={canvasW}
+          height={canvasH}
           style={{ width: '100%', display: 'block' }}
         />
       </div>

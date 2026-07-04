@@ -1,0 +1,22 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+#  Hvigor Commandline wrapper
+# ----------------------------------------------------------------------------
+HVIGOR_APP_HOME=$(
+  cd "$(dirname "$0")"
+  pwd
+)
+HVIGOR_WRAPPER_PATH=${HVIGOR_APP_HOME}/hvigor/hvigor-wrapper.js
+NODE_EXEC=node
+fail() {
+  echo "$1"
+  exit 1
+}
+
+if ! command -v ${NODE_EXEC} >/dev/null 2>&1; then
+  fail "Node.js is not found. Please install Node.js first."
+fi
+
+node --version >/dev/null 2>&1 || fail "Node.js check failed."
+
+node "${HVIGOR_WRAPPER_PATH}" "$@"

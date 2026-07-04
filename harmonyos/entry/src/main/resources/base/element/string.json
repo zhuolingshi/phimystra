@@ -1,0 +1,9 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "音律魔女主模块" },
+    { "name": "ability_desc", "value": "音律魔女" },
+    { "name": "permission_internet_reason", "value": "用于检查应用更新" },
+    { "name": "permission_media_reason", "value": "导入音频和图片文件" },
+    { "name": "app_name", "value": "音律魔女" }
+  ]
+}
