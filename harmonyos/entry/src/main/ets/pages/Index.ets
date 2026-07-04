@@ -300,7 +300,12 @@ struct Index {
 
       const zipPath = `${ctx.cacheDir}/${name}.pez`
       try { fileIo.unlinkSync(zipPath) } catch { /* ignore */ }
-      await zlib.zipFile(tempDir, zipPath)
+      const zipOpts: zlib.Options = {
+        level: zlib.CompressLevel.COMPRESS_LEVEL_DEFAULT_COMPRESSION,
+        memLevel: zlib.MemLevel.MEM_LEVEL_DEFAULT,
+        strategy: zlib.CompressStrategy.COMPRESS_STRATEGY_DEFAULT_STRATEGY
+      }
+      await zlib.zipFile(tempDir, zipPath, zipOpts)
 
       const f5 = fileIo.openSync(zipPath, fileIo.OpenMode.READ_ONLY)
       const stat = fileIo.statSync(zipPath)
