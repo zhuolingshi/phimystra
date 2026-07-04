@@ -9,17 +9,13 @@ export interface PickedFile {
 }
 
 export async function pickAudioFile(): Promise<PickedFile | null> {
-  try {
-    const opt = new picker.DocumentSelectOptions()
-    opt.maxSelectNumber = 1
-    opt.fileSuffixFilters = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac']
-    const docPicker = new picker.DocumentViewPicker()
-    const uris = await docPicker.select(opt)
-    if (!uris || uris.length === 0) return null
-    return await readFileFromUri(uris[0])
-  } catch {
-    return null
-  }
+  const opt = new picker.DocumentSelectOptions()
+  opt.maxSelectNumber = 1
+  opt.fileSuffixFilters = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac']
+  const docPicker = new picker.DocumentViewPicker()
+  const uris = await docPicker.select(opt)
+  if (!uris || uris.length === 0) return null
+  return await readFileFromUri(uris[0])
 }
 
 export async function pickVideoFile(): Promise<PickedFile | null> {

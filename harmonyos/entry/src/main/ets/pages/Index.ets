@@ -12,7 +12,7 @@ import { render, RenderOptions } from '../utils/renderer'
 import { checkForUpdate, UpdateInfo } from '../utils/updater'
 import { APP_VERSION } from '../utils/appState'
 import { ThemeMode, loadThemeMode, saveThemeMode, getResourceTheme, AppTheme } from '../utils/theme'
-import { pickAudioFile, pickVideoFile, pickImageFile, saveFileToDownloads } from '../utils/filePicker'
+import { pickAudioFile, pickVideoFile, pickImageFile, saveFileToDownloads, PickedFile } from '../utils/filePicker'
 import { textureManager } from '../utils/textureManager'
 import { PreviewAudioPlayer } from '../utils/previewAudioPlayer'
 
@@ -111,8 +111,17 @@ struct Index {
   }
 
   private async handleImportAudio(): Promise<void> {
-    const file = await pickAudioFile()
-    if (!file) return
+    let file: PickedFile | null = null
+    try {
+      file = await pickAudioFile()
+    } catch (e) {
+      this.genError = `选择文件失败: ${e.message ?? JSON.stringify(e)}`
+      return
+    }
+    if (!file) {
+      this.genError = '未选择文件或文件读取失败'
+      return
+    }
 
     try {
       const format = getAudioFormat(file.name)
@@ -123,6 +132,7 @@ struct Index {
       this.decodedAudio = decoded
       this.analysis = null
       this.chart = null
+      this.genError = ''
     } catch (e) {
       this.genError = `音频解码失败: ${e.message ?? e}`
     }
