@@ -45,10 +45,11 @@ jobs:
 
           SDK_BASE="https://raw.githubusercontent.com/xiaobingtech/commandline-tools-linux-x64-6.1.0.830/main"
 
-          for i in $(seq -w 1 20); do
-            echo "Downloading part $i/20..."
-            curl -fSL "$SDK_BASE/commandline-tools-linux-x64-6.1.0.830.7z.$i" \
-              -o "$SDK_HOME/commandline-tools-linux-x64-6.1.0.830.7z.$i"
+          for i in $(seq 1 20); do
+            PART=$(printf "%03d" $i)
+            echo "Downloading part $PART/020..."
+            curl -fSL --retry 3 "$SDK_BASE/commandline-tools-linux-x64-6.1.0.830.7z.$PART" \
+              -o "$SDK_HOME/commandline-tools-linux-x64-6.1.0.830.7z.$PART"
           done
 
           cd "$SDK_HOME"
