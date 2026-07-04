@@ -12,7 +12,7 @@ import { render, RenderOptions } from '../utils/renderer'
 import { checkForUpdate, UpdateInfo } from '../utils/updater'
 import { APP_VERSION } from '../utils/appState'
 import { ThemeMode, loadThemeMode, saveThemeMode, getResourceTheme, AppTheme } from '../utils/theme'
-import { pickAudioFile, pickVideoFile, pickImageFile, saveViaPicker, saveBinaryViaPicker, PickedFile } from '../utils/filePicker'
+import { pickAudioFile, pickVideoFile, pickImageFile, saveViaPicker, saveFileViaPicker, PickedFile } from '../utils/filePicker'
 import { zlib } from '@kit.BasicServicesKit'
 import { textureManager } from '../utils/textureManager'
 import { PreviewAudioPlayer } from '../utils/previewAudioPlayer'
@@ -23,6 +23,7 @@ struct Index {
   @State audioName: string = ''
   @State audioFormat: string = ''
   @State audioData: Uint8Array = new Uint8Array(0)
+  private audioUri: string = ''
   @State decodedAudio: DecodedAudioData | null = null
   @State analysis: AudioAnalysis | null = null
   @State isAnalyzing: boolean = false
@@ -114,7 +115,7 @@ struct Index {
   private handleBack(): void {
     if (this.chart) { this.chart = null; this.genResult = null; this.processedChart = null; this.stopPreview(); return }
     if (this.analysis) { this.analysis = null; return }
-    if (this.decodedAudio) { this.decodedAudio = null; this.audioName = ''; this.audioData = new Uint8Array(0); return }
+    if (this.decodedAudio) { this.decodedAudio = null; this.audioName = ''; this.audioData = new Uint8Array(0); this.audioUri = ''; return }
   }
 
   private async handleImportAudio(): Promise<void> {
@@ -136,6 +137,7 @@ struct Index {
       this.audioName = file.name
       this.audioFormat = format
       this.audioData = file.data
+      this.audioUri = file.uri
       this.decodedAudio = decoded
       this.analysis = null
       this.chart = null
@@ -155,6 +157,7 @@ struct Index {
       this.audioName = `${baseName}.mp4`
       this.audioFormat = 'mp4'
       this.audioData = file.data
+      this.audioUri = file.uri
       this.decodedAudio = decoded
       this.analysis = null
       this.chart = null
@@ -226,9 +229,10 @@ struct Index {
   }
 
   private async handleExport(): Promise<void> {
-    if (!this.chart || !this.audioData) return
+    if (!this.chart || !this.audioUri) return
     this.isExporting = true
     this.exportMsg = ''
+    let step = 'init'
 
     try {
       const name = this.songName || this.audioName.replace(/\.[^.]+$/, '') || 'chart'
@@ -240,6 +244,7 @@ struct Index {
       const tempDir = `${ctx.cacheDir}/pez_temp`
       const pathId = this.chart.META.id || '10000000'
 
+      step = 'mkdir'
       try { fileIo.rmdirSync(tempDir) } catch { /* ignore */ }
       fileIo.mkdirSync(tempDir, true)
 
@@ -248,9 +253,10 @@ struct Index {
       const origSong = this.chart.META.song
       const origBg = this.chart.META.background
       this.chart.META.song = musicFile
-      this.chart.META.background = `${pathId}.png`
+      this.chart.META.background = ''
       this.chart.META.id = pathId
 
+      step = 'write-chart'
       const f1 = fileIo.openSync(`${tempDir}/${chartFile}`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
       fileIo.writeSync(f1.fd, JSON.stringify(this.chart, null, 2))
       fileIo.closeSync(f1)
@@ -258,46 +264,26 @@ struct Index {
       this.chart.META.song = origSong
       this.chart.META.background = origBg
 
-      const f2 = fileIo.openSync(`${tempDir}/${musicFile}`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-      const audioBuf = new ArrayBuffer(this.audioData.byteLength)
-      const audioView = new Uint8Array(audioBuf)
-      for (let i = 0; i < this.audioData.byteLength; i++) {
-        audioView[i] = this.audioData[i]
-      }
-      fileIo.writeSync(f2.fd, audioBuf)
-      fileIo.closeSync(f2)
+      step = 'copy-audio'
+      const srcAudio = fileIo.openSync(this.audioUri, fileIo.OpenMode.READ_ONLY)
+      const dstAudio = fileIo.openSync(`${tempDir}/${musicFile}`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+      fileIo.copyFile(srcAudio.fd, dstAudio.fd)
+      fileIo.closeSync(srcAudio)
+      fileIo.closeSync(dstAudio)
 
+      step = 'write-info'
       const m = this.chart.META
-      const infoTxt = `#\nName: ${m.name}\nPath: ${pathId}\nSong: ${musicFile}\nPicture: ${pathId}.png\nChart: ${chartFile}\nLevel: ${m.level}\nComposer: ${m.composer}\nCharter: ${m.charter}\n`
+      const infoTxt = `#\nName: ${m.name}\nPath: ${pathId}\nSong: ${musicFile}\nPicture:\nChart: ${chartFile}\nLevel: ${m.level}\nComposer: ${m.composer}\nCharter: ${m.charter}\n`
       const f3 = fileIo.openSync(`${tempDir}/info.txt`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
       fileIo.writeSync(f3.fd, infoTxt)
       fileIo.closeSync(f3)
 
-      const infoYml = `name: ${m.name}\ndifficulty: 1\nlevel: ${m.level}\ncharter: ${m.charter}\ncomposer: ${m.composer}\nillustrator: AI\nchart: ${chartFile}\nmusic: ${musicFile}\nillustration: ${pathId}.png\npreviewStart: 0.0\npreviewEnd: null\naspectRatio: 1.7777778\nbackgroundDim: 0.6\nlineLength: 6.0\noffset: ${m.offset}\ntags: []\nholdPartialCover: false\nnoteUniformScale: false\nforceAspectRatio: false\n`
+      const infoYml = `name: ${m.name}\ndifficulty: 1\nlevel: ${m.level}\ncharter: ${m.charter}\ncomposer: ${m.composer}\nillustrator: AI\nchart: ${chartFile}\nmusic: ${musicFile}\nillustration:\npreviewStart: 0.0\npreviewEnd: null\naspectRatio: 1.7777778\nbackgroundDim: 0.6\nlineLength: 6.0\noffset: ${m.offset}\ntags: []\nholdPartialCover: false\nnoteUniformScale: false\nforceAspectRatio: false\n`
       const f4 = fileIo.openSync(`${tempDir}/info.yml`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
       fileIo.writeSync(f4.fd, infoYml)
       fileIo.closeSync(f4)
 
-      const pngBytes: number[] = [
-        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-        0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
-        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-        0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89,
-        0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41, 0x54,
-        0x78, 0x9c, 0x63, 0x60, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01,
-        0xe2, 0x21, 0xbc, 0x33,
-        0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44,
-        0xae, 0x42, 0x60, 0x82
-      ]
-      const pngBuf = new ArrayBuffer(pngBytes.length)
-      const pngView = new Uint8Array(pngBuf)
-      for (let i = 0; i < pngBytes.length; i++) {
-        pngView[i] = pngBytes[i]
-      }
-      const fPng = fileIo.openSync(`${tempDir}/${pathId}.png`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-      fileIo.writeSync(fPng.fd, pngBuf)
-      fileIo.closeSync(fPng)
-
+      step = 'zip'
       const zipPath = `${ctx.cacheDir}/${name}.pez`
       try { fileIo.unlinkSync(zipPath) } catch { /* ignore */ }
       const zipOpts: zlib.Options = {
@@ -307,14 +293,9 @@ struct Index {
       }
       await zlib.zipFile(tempDir, zipPath, zipOpts)
 
-      const f5 = fileIo.openSync(zipPath, fileIo.OpenMode.READ_ONLY)
+      step = 'save'
       const stat = fileIo.statSync(zipPath)
-      const zipBuf = new ArrayBuffer(stat.size)
-      fileIo.readSync(f5.fd, zipBuf)
-      fileIo.closeSync(f5)
-
-      const zipData = new Uint8Array(zipBuf)
-      const savedPath = await saveBinaryViaPicker(`${name}.pez`, zipData)
+      await saveFileViaPicker(`${name}.pez`, zipPath)
       this.exportOk = true
       this.exportMsg = `导出成功！${name}.pez（${(stat.size / 1024).toFixed(0)} KB）`
 
@@ -323,7 +304,7 @@ struct Index {
     } catch (e) {
       this.exportOk = false
       const err = e as Error
-      this.exportMsg = `导出失败: ${err.message ?? JSON.stringify(e)}`
+      this.exportMsg = `导出失败[${step}]: ${err.message ?? JSON.stringify(e)}`
     } finally {
       this.isExporting = false
     }

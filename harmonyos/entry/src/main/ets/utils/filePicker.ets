@@ -87,3 +87,18 @@ export async function saveBinaryViaPicker(filename: string, data: Uint8Array): P
   fileIo.closeSync(file)
   return uris[0]
 }
+
+export async function saveFileViaPicker(filename: string, srcPath: string): Promise<string> {
+  const saveOpt = new picker.DocumentSaveOptions()
+  saveOpt.newFileNames = [filename]
+  const docPicker = new picker.DocumentViewPicker()
+  const uris = await docPicker.save(saveOpt)
+  if (!uris || uris.length === 0) throw new Error('用户取消保存')
+
+  const srcFile = fileIo.openSync(srcPath, fileIo.OpenMode.READ_ONLY)
+  const destFile = fileIo.openSync(uris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+  fileIo.copyFile(srcFile.fd, destFile.fd)
+  fileIo.closeSync(srcFile)
+  fileIo.closeSync(destFile)
+  return uris[0]
+}
