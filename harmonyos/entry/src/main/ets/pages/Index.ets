@@ -265,20 +265,50 @@ struct Index {
       this.chart.META.background = origBg
 
       step = 'copy-audio'
+      const audioStat = fileIo.statSync(this.audioUri)
       const srcAudio = fileIo.openSync(this.audioUri, fileIo.OpenMode.READ_ONLY)
-      const dstAudio = fileIo.openSync(`${tempDir}/${musicFile}`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-      fileIo.copyFile(srcAudio.fd, dstAudio.fd)
+      const audioBuf = new ArrayBuffer(audioStat.size)
+      fileIo.readSync(srcAudio.fd, audioBuf)
       fileIo.closeSync(srcAudio)
+      const dstAudio = fileIo.openSync(`${tempDir}/${musicFile}`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+      fileIo.writeSync(dstAudio.fd, audioBuf)
       fileIo.closeSync(dstAudio)
 
       step = 'write-info'
       const m = this.chart.META
-      const infoTxt = `#\nName: ${m.name}\nPath: ${pathId}\nSong: ${musicFile}\nPicture:\nChart: ${chartFile}\nLevel: ${m.level}\nComposer: ${m.composer}\nCharter: ${m.charter}\n`
+      const nl = '\n'
+      const infoTxt = '#' + nl +
+        'Name: ' + m.name + nl +
+        'Path: ' + pathId + nl +
+        'Song: ' + musicFile + nl +
+        'Picture: ' + nl +
+        'Chart: ' + chartFile + nl +
+        'Level: ' + m.level + nl +
+        'Composer: ' + m.composer + nl +
+        'Charter: ' + m.charter + nl
       const f3 = fileIo.openSync(`${tempDir}/info.txt`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
       fileIo.writeSync(f3.fd, infoTxt)
       fileIo.closeSync(f3)
 
-      const infoYml = `name: ${m.name}\ndifficulty: 1\nlevel: ${m.level}\ncharter: ${m.charter}\ncomposer: ${m.composer}\nillustrator: AI\nchart: ${chartFile}\nmusic: ${musicFile}\nillustration:\npreviewStart: 0.0\npreviewEnd: null\naspectRatio: 1.7777778\nbackgroundDim: 0.6\nlineLength: 6.0\noffset: ${m.offset}\ntags: []\nholdPartialCover: false\nnoteUniformScale: false\nforceAspectRatio: false\n`
+      const infoYml = 'name: ' + JSON.stringify(m.name) + nl +
+        'difficulty: 1' + nl +
+        'level: ' + JSON.stringify(m.level) + nl +
+        'charter: ' + JSON.stringify(m.charter) + nl +
+        'composer: ' + JSON.stringify(m.composer) + nl +
+        'illustrator: ' + JSON.stringify('AI') + nl +
+        'chart: ' + JSON.stringify(chartFile) + nl +
+        'music: ' + JSON.stringify(musicFile) + nl +
+        'illustration: ' + JSON.stringify('') + nl +
+        'previewStart: 0.0' + nl +
+        'previewEnd: null' + nl +
+        'aspectRatio: 1.7777778' + nl +
+        'backgroundDim: 0.6' + nl +
+        'lineLength: 6.0' + nl +
+        'offset: ' + m.offset + nl +
+        'tags: []' + nl +
+        'holdPartialCover: false' + nl +
+        'noteUniformScale: false' + nl +
+        'forceAspectRatio: false' + nl
       const f4 = fileIo.openSync(`${tempDir}/info.yml`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
       fileIo.writeSync(f4.fd, infoYml)
       fileIo.closeSync(f4)
