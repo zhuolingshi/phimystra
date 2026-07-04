@@ -64,62 +64,49 @@ jobs:
           SDK_HOME="$HOME/harmonyos-sdk"
           CLT_DIR="$SDK_HOME/command-line-tools"
 
-          # Add bin dirs to PATH
-          for d in "$CLT_DIR/bin" "$CLT_DIR/hstack/bin"; do
-            if [ -d "$d" ]; then
-              echo "$d" >> $GITHUB_PATH
-            fi
-          done
+          # SDK bundled tool paths
+          HVIGORW="$CLT_DIR/hvigor/bin/hvigorw"
+          OHPM=$(find "$CLT_DIR" -name "ohpm" -type f 2>/dev/null | head -1)
 
-          # SDK directory
+          # Add to PATH
+          echo "$CLT_DIR/hvigor/bin" >> $GITHUB_PATH
+          echo "$CLT_DIR/tool/node/bin" >> $GITHUB_PATH
+          if [ -n "$OHPM" ]; then
+            echo "$(dirname "$OHPM")" >> $GITHUB_PATH
+          fi
+
           SDK_DIR="$CLT_DIR/sdk/default"
           echo "DEVECO_SDK_HOME=$SDK_HOME" >> $GITHUB_ENV
           echo "HOS_SDK_HOME=$SDK_HOME" >> $GITHUB_ENV
           echo "OHOS_SDK_HOME=$SDK_DIR" >> $GITHUB_ENV
 
-          # Create .npmrc for hvigor: @ohos scope → ohpm, rest → npmjs
+          # .npmrc: @ohos scope → ohpm registry
           cat > "$HOME/.npmrc" << 'EOF'
           registry=https://registry.npmjs.org/
           @ohos:registry=https://ohpm.openharmony.cn/ohpm/
           strict-ssl=false
           EOF
 
-          echo "=== CLT_DIR contents ==="
-          ls -la "$CLT_DIR"
-          echo "=== bin contents ==="
-          ls "$CLT_DIR/bin" 2>/dev/null || echo "no bin dir"
-          echo "=== tool dir ==="
-          ls "$CLT_DIR/tool" 2>/dev/null || echo "no tool dir"
-          echo "=== find hvigor packages ==="
-          find "$SDK_HOME" -maxdepth 6 -path "*/node_modules/@ohos/hvigor*" -type d 2>/dev/null | head -10
-          echo "=== find all executables ==="
-          find "$CLT_DIR" -maxdepth 3 -type f -executable 2>/dev/null | head -20
-
       - name: Install Dependencies
         working-directory: harmonyos
         run: |
-          # Create package.json for npm/pnpm compatibility
-          if [ ! -f package.json ]; then
-            cp oh-package.json5 package.json 2>/dev/null || true
+          OHPM_BIN=$(command -v ohpm 2>/dev/null)
+          if [ -n "$OHPM_BIN" ]; then
+            "$OHPM_BIN" install 2>&1 || echo "ohpm install warning"
+          else
+            echo "ohpm not found, skipping"
           fi
-          ohpm install 2>&1 || echo "ohpm install failed, continuing..."
 
       - name: Build HAP
         working-directory: harmonyos
         run: |
-          chmod +x hvigorw
-          ./hvigorw assembleHap --mode module -p product=default --no-daemon 2>&1 || {
-            echo "=== Retrying with SDK hvigorw ==="
-            SDK_HVIGORW="$HOME/harmonyos-sdk/command-line-tools/bin/hvigorw"
-            if [ -f "$SDK_HVIGORW" ]; then
-              chmod +x "$SDK_HVIGORW"
-              "$SDK_HVIGORW" assembleHap --mode module -p product=default --no-daemon \
-                -p project=$GITHUB_WORKSPACE/harmonyos 2>&1
-            else
-              echo "SDK hvigorw not found"
-              exit 1
-            fi
-          }
+          SDK_HOME="$HOME/harmonyos-sdk"
+          HVIGORW="$SDK_HOME/command-line-tools/hvigor/bin/hvigorw"
+
+          echo "=== Using SDK hvigorw: $HVIGORW ==="
+          chmod +x "$HVIGORW"
+          "$HVIGORW" assembleHap --mode module -p product=default --no-daemon \
+            -p project=$GITHUB_WORKSPACE/harmonyos 2>&1
 
       - name: Upload Build Output
         uses: actions/upload-artifact@v4
