@@ -557,88 +557,11 @@ struct Index {
   @Builder
   ChartScreen(): void {
     Column() {
-      this.InfoEditorCard()
-      this.BackgroundCard()
-
-      if (this.processedChart) {
-        Column() {
-          Canvas(this.canvasCtx)
-            .width('100%')
-            .height(this.canvasHeight)
-            .borderRadius(16)
-            .backgroundColor('#0a0a18')
-            .onReady(() => {
-              this.renderPreview()
-            })
-        }
-        .width('100%')
-        .backgroundColor($r('app.color.bg_card'))
-        .borderRadius(16)
-        .clip(true)
-        .margin({ top: 16 })
-      } else {
-        Text('谱面已生成（预览不可用）')
-          .fontSize(14)
-          .fontColor($r('app.color.text_secondary'))
-          .padding(20)
-          .width('100%')
-          .textAlign(TextAlign.Center)
-          .backgroundColor($r('app.color.bg_card'))
-          .borderRadius(16)
-          .margin({ top: 16 })
-      }
-
-      Row() {
-        Button() {
-          SymbolGlyph(this.isPreviewPlaying ? $r('sys.symbol.pause') : $r('sys.symbol.play_fill'))
-            .fontSize(22)
-            .fontColor([$r('app.color.accent_text')])
-        }
-        .type(ButtonType.Normal)
-        .backgroundColor($r('app.color.accent'))
-        .borderRadius(20)
-        .width(44)
-        .height(44)
-        .onClick(() => this.startPreview())
-
-        Text(`${this.previewTime.toFixed(1)}s / ${this.previewDuration.toFixed(1)}s`)
-          .fontSize(13)
-          .fontColor($r('app.color.text_secondary'))
-      }
-      .width('100%')
-      .justifyContent(FlexAlign.SpaceBetween)
-      .margin({ top: 12 })
-
-      this.ChartStatsCard()
-
-      if (this.exportMsg.length > 0) {
-        Text(this.exportMsg)
-          .fontSize(14)
-          .fontColor(this.exportOk ? '#34C759' : $r('app.color.danger'))
-          .margin({ top: 8 })
-      }
-
-      Button(this.isExporting ? '正在导出' : '导出谱面包')
-        .width('100%')
-        .height(52)
-        .fontSize(17)
-        .fontColor($r('app.color.accent_text'))
-        .backgroundColor(this.isExporting ? $r('app.color.bg_card') : '#FF9800')
-        .borderRadius(24)
-        .enabled(!this.isExporting)
-        .onClick(() => this.handleExport())
-        .margin({ top: 12 })
-
-      Button('重新生成')
-        .width('100%')
-        .height(48)
-        .fontSize(15)
-        .fontColor($r('app.color.text_secondary'))
-        .backgroundColor($r('app.color.bg_card'))
-        .borderRadius(24)
-        .border({ width: 1, color: $r('app.color.border') })
-        .onClick(() => { this.chart = null; this.genResult = null; this.processedChart = null; this.stopPreview() })
-        .margin({ top: 8 })
+      Text('谱面生成成功！')
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.text_primary'))
+        .padding(20)
     }
     .width('100%')
   }
