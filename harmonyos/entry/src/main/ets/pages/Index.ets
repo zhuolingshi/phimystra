@@ -453,6 +453,16 @@ struct Index {
       }
       .width('100%')
       .alignItems(HorizontalAlign.Center)
+
+      if (this.genError.length > 0) {
+        Text(this.genError)
+          .fontSize(14)
+          .fontColor('#FF9800')
+          .margin({ top: 16 })
+          .padding(12)
+          .backgroundColor('rgba(255,152,0,0.1)')
+          .borderRadius(8)
+      }
     }
     .width('100%')
   }

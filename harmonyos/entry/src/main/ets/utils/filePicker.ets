@@ -46,20 +46,15 @@ export async function pickImageFile(): Promise<PickedFile | null> {
   }
 }
 
-async function readFileFromUri(uri: string): Promise<PickedFile | null> {
-  try {
-    const file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
-    const stat = fileIo.statSync(uri)
-    const size = stat.size
-    const buffer = new ArrayBuffer(size)
-    fileIo.readSync(file.fd, buffer)
-    fileIo.closeSync(file)
-    const name = uri.split('/').pop() ?? 'unknown'
-    return { name, data: new Uint8Array(buffer), uri }
-  } catch (e) {
-    console.error('[FilePick] read error: ' + JSON.stringify(e))
-    return null
-  }
+async function readFileFromUri(uri: string): Promise<PickedFile> {
+  const file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
+  const stat = fileIo.statSync(uri)
+  const size = stat.size
+  const buffer = new ArrayBuffer(size)
+  fileIo.readSync(file.fd, buffer)
+  fileIo.closeSync(file)
+  const name = uri.split('/').pop() ?? 'unknown'
+  return { name, data: new Uint8Array(buffer), uri }
 }
 
 export async function saveFileToDownloads(filename: string, data: Uint8Array): Promise<string> {
