@@ -134,7 +134,7 @@ jobs:
           ln -sf "$CLT_DIR/hvigor/hvigor-ohos-plugin" node_modules/@ohos/hvigor-ohos-plugin
 
           chmod +x hvigorw
-          ./hvigorw assembleHap --mode module -p product=default --no-daemon 2>&1
+          ./hvigorw assembleHap --mode module -p product=default --no-daemon --stacktrace 2>&1
 
       - name: Upload Build Output
         uses: actions/upload-artifact@v4
