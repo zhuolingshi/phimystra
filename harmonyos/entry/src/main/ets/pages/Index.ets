@@ -567,7 +567,7 @@ struct Index {
         .padding(20)
 
       if (this.genResult) {
-        Text(`BPM: ${this.bpm}  音符: ${this.noteCount}  判定线: ${this.lineCount}`)
+        Text(`BPM: ${this.analysis ? this.analysis.bpm : 0}  音符: ${this.noteCount}  判定线: ${this.lineCount}`)
           .fontSize(15)
           .fontColor($r('app.color.text_secondary'))
           .padding(16)

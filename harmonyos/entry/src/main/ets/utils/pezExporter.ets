@@ -54,29 +54,31 @@ export function exportPez(params: PezExportParams): PezExportResult {
 }
 
 function strToU8(str: string): Uint8Array {
-  const bytes: number[] = []
+  const buffer = new ArrayBuffer(str.length * 4)
+  const view = new Uint8Array(buffer)
+  let pos = 0
   for (let i = 0; i < str.length; i++) {
     const c = str.charCodeAt(i)
     if (c < 0x80) {
-      bytes.push(c)
+      view[pos++] = c
     } else if (c < 0x800) {
-      bytes.push(0xc0 | (c >> 6))
-      bytes.push(0x80 | (c & 0x3f))
+      view[pos++] = 0xc0 | (c >> 6)
+      view[pos++] = 0x80 | (c & 0x3f)
     } else if (c < 0xd800 || c >= 0xe000) {
-      bytes.push(0xe0 | (c >> 12))
-      bytes.push(0x80 | ((c >> 6) & 0x3f))
-      bytes.push(0x80 | (c & 0x3f))
+      view[pos++] = 0xe0 | (c >> 12)
+      view[pos++] = 0x80 | ((c >> 6) & 0x3f)
+      view[pos++] = 0x80 | (c & 0x3f)
     } else {
       i++
       const c2 = str.charCodeAt(i)
       const cp = 0x10000 + (((c & 0x3ff) << 10) | (c2 & 0x3ff))
-      bytes.push(0xf0 | (cp >> 18))
-      bytes.push(0x80 | ((cp >> 12) & 0x3f))
-      bytes.push(0x80 | ((cp >> 6) & 0x3f))
-      bytes.push(0x80 | (cp & 0x3f))
+      view[pos++] = 0xf0 | (cp >> 18)
+      view[pos++] = 0x80 | ((cp >> 12) & 0x3f)
+      view[pos++] = 0x80 | ((cp >> 6) & 0x3f)
+      view[pos++] = 0x80 | (cp & 0x3f)
     }
   }
-  return new Uint8Array(bytes)
+  return view.subarray(0, pos)
 }
 
 function buildInfoTxt(chart: RPEChart, pathId: string, chartFile: string, musicFile: string, imageFile: string): string {
@@ -206,7 +208,7 @@ function generatePng(
   width: number, height: number,
   pixelFn: (x: number, y: number) => number[]
 ): Uint8Array {
-  const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+  const signature = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
   const ihdrData = new Uint8Array(13)
   const dv = new DataView(ihdrData.buffer)
