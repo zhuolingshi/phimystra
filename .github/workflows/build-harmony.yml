@@ -122,6 +122,12 @@ jobs:
           EOF
 
           echo "=== Running build with project hvigorw ==="
+
+          # Create symlinks so Node.js can resolve SDK bundled packages
+          mkdir -p node_modules/@ohos
+          ln -sf "$CLT_DIR/hvigor/hvigor" node_modules/@ohos/hvigor
+          ln -sf "$CLT_DIR/hvigor/hvigor-ohos-plugin" node_modules/@ohos/hvigor-ohos-plugin
+
           chmod +x hvigorw
           ./hvigorw assembleHap --mode module -p product=default --no-daemon 2>&1
 
