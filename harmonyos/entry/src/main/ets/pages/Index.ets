@@ -194,8 +194,13 @@ struct Index {
 
       this.chart = result.chart
       this.genResult = result
-      this.processedChart = parseChart(result.chart)
-      this.previewDuration = this.processedChart.duration
+
+      try {
+        this.processedChart = parseChart(result.chart)
+        this.previewDuration = this.processedChart.duration
+      } catch (e2) {
+        console.error('[PhiMystra] parseChart error: ' + JSON.stringify(e2))
+      }
     } catch (e) {
       const err = e as Error
       this.genError = `生成失败: ${err.message ?? JSON.stringify(e)}`
