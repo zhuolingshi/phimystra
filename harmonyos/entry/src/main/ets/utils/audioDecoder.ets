@@ -1,7 +1,6 @@
 import { DecodedAudioData } from './audioAnalysis'
 import { common } from '@kit.AbilityKit'
 import { fileIo } from '@kit.CoreFileKit'
-import audioDecoder from 'libaudio_decoder.so'
 
 export interface DecodedAudio {
   name: string
@@ -112,45 +111,7 @@ export function decodeWav(data: Uint8Array): DecodedAudioData {
 }
 
 async function decodeCompressed(data: Uint8Array, format: string): Promise<DecodedAudioData> {
-  const ctx = globalThis.ctx as common.UIAbilityContext
-  const tempPath = `${ctx.cacheDir}/temp_decode_${Date.now()}.${format}`
-
-  const file = fileIo.openSync(tempPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-  fileIo.writeSync(file.fd, data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength))
-  const stat = fileIo.statSync(tempPath)
-  const fileSize = stat.size
-
-  try {
-    const result = await audioDecoder.decodeAudio(file.fd, 0, fileSize)
-
-    const view = new DataView(result.pcmData)
-    const numFrames = view.byteLength / (2 * result.channels)
-    const channelData: Float32Array[] = []
-    for (let ch = 0; ch < result.channels; ch++) {
-      channelData.push(new Float32Array(numFrames))
-    }
-    for (let i = 0; i < numFrames; i++) {
-      for (let ch = 0; ch < result.channels; ch++) {
-        const off = (i * result.channels + ch) * 2
-        channelData[ch][i] = view.getInt16(off, true) / 32768
-      }
-    }
-
-    return {
-      sampleRate: result.sampleRate,
-      numberOfChannels: result.channels,
-      length: numFrames,
-      duration: result.duration,
-      channelData
-    }
-  } finally {
-    fileIo.closeSync(file)
-    try {
-      fileIo.unlinkSync(tempPath)
-    } catch {
-      // ignore cleanup error
-    }
-  }
+  throw new Error(`不支持的音频格式: ${format}，请转换为 WAV 格式`)
 }
 
 export async function decodeAudioFile(data: Uint8Array, format: string): Promise<DecodedAudioData> {
