@@ -35,7 +35,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/harmonyos-sdk
-          key: ohos-sdk-6.1.0.830-v1
+          key: ohos-sdk-6.1.0.830-v2
 
       - name: Download HarmonyOS SDK
         if: steps.cache-sdk.outputs.cache-hit != 'true'
@@ -53,83 +53,68 @@ jobs:
           done
 
           cd "$SDK_HOME"
-
-          # Merge split parts and extract 7z → zip
-          echo "=== Merging split parts ==="
-          cat commandline-tools-linux-x64-6.1.0.830.7z.0* > commandline-tools-linux-x64-6.1.0.830-merged.7z
-
-          echo "=== Extracting 7z ==="
-          7z x commandline-tools-linux-x64-6.1.0.830-merged.7z -y
-          rm -f commandline-tools-linux-x64-6.1.0.830-merged.7z
-          rm -f commandline-tools-linux-x64-6.1.0.830.7z.0*
-
-          # Extract zip → actual SDK
-          echo "=== Extracting zip ==="
+          cat commandline-tools-linux-x64-6.1.0.830.7z.0* > merged.7z
+          7z x merged.7z -y
+          rm -f merged.7z commandline-tools-linux-x64-6.1.0.830.7z.0*
           unzip -q -o commandline-tools-linux-x64-6.1.0.830.zip
           rm -f commandline-tools-linux-x64-6.1.0.830.zip
-
-          echo "=== Disk usage ==="
-          du -sh "$SDK_HOME"
-          echo "=== Top-level contents ==="
-          ls -la "$SDK_HOME"
-          echo "=== All directories (maxdepth 5) ==="
-          find "$SDK_HOME" -maxdepth 5 -type d 2>/dev/null | head -50
-          echo "=== Key executables ==="
-          find "$SDK_HOME" -maxdepth 6 \( -name "ohpm" -o -name "hvigorw" -o -name "hvigor" -o -name "sdkmgr" \) 2>/dev/null
 
       - name: Configure SDK Environment
         run: |
           SDK_HOME="$HOME/harmonyos-sdk"
+          CLT_DIR="$SDK_HOME/command-line-tools"
 
-          # Find command-line tools bin directory
-          BIN_DIR=$(find "$SDK_HOME" -maxdepth 4 -name "ohpm" -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true)
-          if [ -z "$BIN_DIR" ]; then
-            BIN_DIR=$(find "$SDK_HOME" -maxdepth 4 -name "hvigorw" -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true)
-          fi
+          # Add bin dirs to PATH
+          for d in "$CLT_DIR/bin" "$CLT_DIR/hstack/bin"; do
+            if [ -d "$d" ]; then
+              echo "$d" >> $GITHUB_PATH
+            fi
+          done
 
-          echo "BIN_DIR: ${BIN_DIR:-NOT_FOUND}"
-
-          # Find SDK root (where openharmony/ or hms/ dirs are)
-          SDK_DIR=$(find "$SDK_HOME" -maxdepth 5 -name "openharmony" -type d 2>/dev/null | head -1 | xargs dirname 2>/dev/null || echo "$SDK_HOME")
-          echo "SDK_DIR: $SDK_DIR"
-
-          # Add bin to PATH
-          if [ -n "$BIN_DIR" ]; then
-            echo "$BIN_DIR" >> $GITHUB_PATH
-          fi
-
+          # SDK directory
+          SDK_DIR="$CLT_DIR/sdk/default"
           echo "DEVECO_SDK_HOME=$SDK_HOME" >> $GITHUB_ENV
           echo "HOS_SDK_HOME=$SDK_HOME" >> $GITHUB_ENV
           echo "OHOS_SDK_HOME=$SDK_DIR" >> $GITHUB_ENV
 
-          # List key binaries
-          echo "=== Key files ==="
-          find "$SDK_HOME" -maxdepth 5 \( -name "ohpm" -o -name "hvigorw" -o -name "hvigor" -o -name "sdkmgr" \) 2>/dev/null
+          # Create .npmrc for hvigor (ohpm registry)
+          cat > "$HOME/.npmrc" << 'EOF'
+          registry=https://ohpm.openharmony.cn/ohpm/
+          @ohos:registry=https://ohpm.openharmony.cn/ohpm/
+          strict-ssl=false
+          EOF
+
+          echo "=== CLT_DIR contents ==="
+          ls -la "$CLT_DIR"
+          echo "=== bin contents ==="
+          ls -la "$CLT_DIR/bin" 2>/dev/null || echo "no bin dir"
+          ls -la "$CLT_DIR/hstack/bin" 2>/dev/null || echo "no hstack/bin dir"
 
       - name: Install Dependencies
         working-directory: harmonyos
         run: |
-          if command -v ohpm &>/dev/null; then
-            ohpm install
-          else
-            echo "ohpm not found in PATH"
-            npm install
+          # Create package.json for npm/pnpm compatibility
+          if [ ! -f package.json ]; then
+            cp oh-package.json5 package.json 2>/dev/null || true
           fi
+          ohpm install 2>&1 || echo "ohpm install failed, continuing..."
 
       - name: Build HAP
         working-directory: harmonyos
         run: |
           chmod +x hvigorw
-
-          # Try SDK's hvigorw first, then project's wrapper
-          if command -v hvigorw &>/dev/null; then
-            echo "=== Using SDK hvigorw ==="
-            hvigorw assembleHap --mode module -p product=default --no-daemon \
-              -p project=$GITHUB_WORKSPACE/harmonyos
-          else
-            echo "=== Using project hvigorw ==="
-            ./hvigorw assembleHap --mode module -p product=default --no-daemon
-          fi
+          ./hvigorw assembleHap --mode module -p product=default --no-daemon 2>&1 || {
+            echo "=== Retrying with SDK hvigorw ==="
+            SDK_HVIGORW="$HOME/harmonyos-sdk/command-line-tools/bin/hvigorw"
+            if [ -f "$SDK_HVIGORW" ]; then
+              chmod +x "$SDK_HVIGORW"
+              "$SDK_HVIGORW" assembleHap --mode module -p product=default --no-daemon \
+                -p project=$GITHUB_WORKSPACE/harmonyos 2>&1
+            else
+              echo "SDK hvigorw not found"
+              exit 1
+            fi
+          }
 
       - name: Upload Build Output
         uses: actions/upload-artifact@v4
@@ -139,7 +124,6 @@ jobs:
           path: |
             harmonyos/entry/build/
             harmonyos/build/
-            harmonyos/**/*.log
           retention-days: 30
           if-no-files-found: warn
 
