@@ -1,1 +1,3 @@
-export { hapTasks } from '@ohos/hvigor-ohos-plugin'
+export default {
+  system: require('@ohos/hvigor-ohos-plugin').hapTasks
+}
