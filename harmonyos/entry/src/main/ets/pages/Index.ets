@@ -90,7 +90,9 @@ struct Index {
   }
 
   private get bpm(): number {
-    return this.analysis?.bpm ?? this.chart?.BPMList?.[0]?.bpm ?? 0
+    if (this.analysis) return this.analysis.bpm
+    if (this.chart && this.chart.BPMList.length > 0) return this.chart.BPMList[0].bpm
+    return 0
   }
 
   private get noteCount(): number {
@@ -101,7 +103,8 @@ struct Index {
   }
 
   private get lineCount(): number {
-    return this.chart?.judgeLineList?.length ?? 0
+    if (!this.chart) return 0
+    return this.chart.judgeLineList.length
   }
 
   private handleBack(): void {

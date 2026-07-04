@@ -60,10 +60,9 @@ async function readFileFromUri(uri: string): Promise<PickedFile> {
 export async function saveFileToDownloads(filename: string, data: Uint8Array): Promise<string> {
   try {
     const ctx = globalThis.ctx as common.UIAbilityContext
-    const downloadsDir = ctx.filesDir + '/../../..' 
     const filePath = `${ctx.cacheDir}/${filename}`
     const file = fileIo.openSync(filePath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-    fileIo.writeSync(file.fd, data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength))
+    fileIo.writeSync(file.fd, data)
     fileIo.closeSync(file)
     return filePath
   } catch (e) {
