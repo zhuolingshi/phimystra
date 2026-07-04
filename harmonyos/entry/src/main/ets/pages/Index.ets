@@ -330,8 +330,12 @@ struct Index {
 
   private renderPreview(): void {
     if (!this.processedChart) return
-    render(this.canvasCtx, this.processedChart, this.previewTime,
-      this.canvasWidth, this.canvasHeight, this.renderOptions)
+    try {
+      render(this.canvasCtx, this.processedChart, this.previewTime,
+        this.canvasWidth, this.canvasHeight, this.renderOptions)
+    } catch (e) {
+      this.genError = `渲染错误: ${JSON.stringify(e)}`
+    }
   }
 
   build(): void {
@@ -556,21 +560,33 @@ struct Index {
       this.InfoEditorCard()
       this.BackgroundCard()
 
-      Column() {
-        Canvas(this.canvasCtx)
+      if (this.processedChart) {
+        Column() {
+          Canvas(this.canvasCtx)
+            .width('100%')
+            .height(this.canvasHeight)
+            .borderRadius(16)
+            .backgroundColor('#0a0a18')
+            .onReady(() => {
+              this.renderPreview()
+            })
+        }
+        .width('100%')
+        .backgroundColor($r('app.color.bg_card'))
+        .borderRadius(16)
+        .clip(true)
+        .margin({ top: 16 })
+      } else {
+        Text('谱面已生成（预览不可用）')
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+          .padding(20)
           .width('100%')
-          .height(this.canvasHeight)
+          .textAlign(TextAlign.Center)
+          .backgroundColor($r('app.color.bg_card'))
           .borderRadius(16)
-          .backgroundColor('#0a0a18')
-          .onReady(() => {
-            this.renderPreview()
-          })
+          .margin({ top: 16 })
       }
-      .width('100%')
-      .backgroundColor($r('app.color.bg_card'))
-      .borderRadius(16)
-      .clip(true)
-      .margin({ top: 16 })
 
       Row() {
         Button() {
